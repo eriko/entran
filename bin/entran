@@ -1,0 +1,207 @@
+#!/usr/bin/env ruby
+require 'gli'
+#begin # XXX: Remove this begin/rescue before distributing your app
+require 'entran'
+require 'faraday'
+require 'yaml'
+require 'csv'
+require 'open-uri'
+require 'nokogiri'
+require 'csv'
+#require 'openssl'
+require 'net/http/post/multipart'
+#rescue LoadError
+#  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
+#  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
+#  STDERR.puts "Feel free to remove this message from bin/entran now"
+#  exit 64
+#end
+#config_file '.entran.rc'
+
+module Net
+  class HTTP
+    alias_method :original_use_ssl=, :use_ssl=
+
+    def use_ssl=(flag)
+      #self.ca_file = Rails.root.join('lib/ca-bundle.crt')
+      self.verify_mode = OpenSSL::SSL::VERIFY_NONE
+      self.original_use_ssl = flag
+    end
+  end
+end
+
+include GLI::App
+config_file '.entran.rc'
+program_desc 'Describe your application here'
+
+version Entran::VERSION
+
+desc 'debug disables any changes to edge systems'
+switch [:d, :debug]
+
+
+desc 'all users from ims file and not limited to request courses'
+switch [:f, :full]
+
+flag [:h, :hostname]
+flag [:t, :token]
+flag [:p, :presence]
+flag [:i, :ims_key]
+flag [:b, :banner_host]
+
+desc 'Enrollment work for Canvas'
+command :canvas do |c|
+
+
+  c.action do |global_options, options, args|
+
+    # Your command logic here
+
+    # If you have any errors, just raise them
+    # raise "that command made no sense"
+    puts global_options
+
+    files = Hash.new
+    puts "----------------->loading feed files"
+    load_files(files, 'canvas',global_options[:p],global_options[:i],global_options[:b])
+
+    @users = Hash.new
+    puts "----------------->importing terms"
+    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+    puts "----------------->importing users"
+    @users = User.import_xml files[:ims]
+    @enrollments_canvas = Array.new
+
+    puts "----------------->importing courses"
+    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse"
+    #puts @courses
+    #get people and enrollments
+
+    puts "----------------->creating enrollments"
+    @courses.values.each do |course|
+      puts "------------------>working on: #{course.long_name}"
+      @enrollments_canvas = Enrollment.import_xml course, files[:ims], @enrollments_canvas, @users
+
+    end
+
+    unless global_options[:f]
+      puts "----------------->limiting users to requested courses"
+      @users_csv = User.users_limited_canvas_csv(@users, @enrollments_canvas)
+    else
+      puts "----------------->using all users from enrollment source"
+      @users_csv = User.users_canvas_csv(@users)
+    end
+
+    @canvases_csv = CanvasCourse.courses_csv(@courses)
+    puts "----------------->creating/updating courses"
+    puts @canvases_csv
+    #puts @moodles_csv
+    #puts @canvases_csv
+
+    #puts @enrollments
+    #@enrollments_moodle_csv = Enrollment.enrollments_moodle_csv(@enrollments_moodle)
+    @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
+    puts "----------------->enrollments: #{@enrollments_canvas.count}"
+    #puts @enrollments_mooodle_csv
+    #puts @enrollments_canvas_csv
+
+    #@terms_csv = Term.term_canvas_csv(@terms)
+    #puts "----------------->terms"
+    #puts @terms_csv
+
+
+    puts "creating SIS zip file"
+    filename = "sis_#{Time.now.to_i.to_s}"
+    fullpath = "/tmp/#{filename}.zip"
+    Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
+      ar.add_buffer('users.csv', @users_csv);
+      ar.add_buffer('terms.csv', files[:terms_csv].string);
+      ar.add_buffer('courses.csv', @canvases_csv);
+      ar.add_buffer('enrollments.csv', @enrollments_canvas_csv);
+    end
+
+    token = global_options[:t]
+    hostname = global_options[:h]
+    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip?api_key=#{token}")
+    puts url
+    req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
+    req.add_field("Authorization", "Bearer #{token}")
+    n = Net::HTTP.new(url.host, url.port)
+    n.use_ssl = true
+    if global_options[:d]
+      puts "----------------->debug mode so not talking to canvas host"
+    else
+      res = n.start do |http|
+        http.request(req)
+      end
+      puts res
+    end
+    File.delete(fullpath)
+
+
+    puts "canvas command ran"
+  end
+end
+
+#desc 'Describe moodle here'
+#arg_name 'Describe arguments to moodle here'
+#command :moodle do |c|
+#  c.action do |global_options, options, args|
+#    files = Hash.new
+#    load_files(files,'moodle')
+#    puts files[:lms_courses].xpath("//current_curricular_year").text
+#
+#
+#    @users = Hash.new
+#    @terms = Term.import_xml files[:terms_xml] ,files[:lms_courses].xpath("//current_curricular_year").text.to_i
+#    @users = User.import_xml files[:ims]
+#    @courses = Course.import_xml files[:lms_courses]  , @terms ,files[:ims], @catalogs , "MoodleCourse"
+#
+#
+#    puts "the moodles are #{@courses}"
+#    @moodles_csv = MoodleCourse.courses_csv(@courses)
+#    puts "----------------->courses"
+#    #puts @moodles_csv
+#
+#
+#
+#    puts "creating moodle zip file"
+#    filename = "moodle_#{Time.now.to_i.to_s}"
+#    Zip::Archive.open("../tmp/#{filename}.zip", Zip::CREATE) do |ar|
+#      ar.add_buffer('terms.csv', @terms_csv.string);
+#      ar.add_buffer('courses.csv', @moodles_csv);
+#    end
+#    puts "moodle command ran"
+#  end
+#end
+#
+#desc 'Describe wordpress here'
+#arg_name 'Describe arguments to wordpress here'
+#command :wordpress do |c|
+#  c.action do |global_options, options, args|
+#    puts "wordpress command ran"
+#  end
+#end
+
+pre do |global, command, options, args|
+  # Pre logic here
+  # Return true to proceed; false to abort and not call the
+  # chosen command
+  # Use skips_pre before a command to skip this block
+  # on that command only
+  true
+end
+
+post do |global, command, options, args|
+  # Post logic here
+  # Use skips_post before a command to skip this
+  # block on that command only
+end
+
+on_error do |exception|
+  # Error logic here
+  # return false to skip default error handling
+  true
+end
+
+exit run(ARGV)

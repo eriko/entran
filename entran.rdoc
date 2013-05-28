@@ -1,0 +1,5 @@
+= entran
+
+Generate this with
+    entran rdoc
+After you have described your command line interface
