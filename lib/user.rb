@@ -25,7 +25,7 @@ class User
     end
   end
 
-  def User.users_limited_canvas_csv(users,enrollments_canvas)
+  def User.users_limited_canvas_csv(enrollments_canvas)
     #puts users
     CSV.generate do |csv|
       csv << ["user_id", "login_id", "password", "first_name", "last_name", "email", "status"]

@@ -96,16 +96,18 @@ class Course
 end
 
 class CanvasCourse < Course
-
-  def CanvasCourse.courses_csv(courses)
+  def CanvasCourse.courses_csv(courses,global_options)
     CSV.generate do |csv|
       csv << ["course_id", "short_name", "long_name", "account_id", "term_id", "status", "start_date", "end_date"]
       courses.each do |course_id, course|
-        csv << course.to_array(:canvas)
+        unless course_created?(course_id,global_options)
+          csv << course.to_array(:canvas)
+        end
       end
     end
   end
 end
+
 
 class MoodleCourse < Course
   def MoodleCourse.courses_csv(courses)

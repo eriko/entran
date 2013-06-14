@@ -47,6 +47,7 @@ flag [:h, :hostname]
 flag [:t, :token]
 flag [:p, :presence]
 flag [:i, :ims_key]
+flag [:c, :canvas_key]
 flag [:b, :banner_host]
 
 desc 'Enrollment work for Canvas'
@@ -80,19 +81,20 @@ command :canvas do |c|
     puts "----------------->creating enrollments"
     @courses.values.each do |course|
       puts "------------------>working on: #{course.long_name}"
+      #course_created?(course.course_id,global_options)
       @enrollments_canvas = Enrollment.import_xml course, files[:ims], @enrollments_canvas, @users
 
     end
 
     unless global_options[:f]
       puts "----------------->limiting users to requested courses"
-      @users_csv = User.users_limited_canvas_csv(@users, @enrollments_canvas)
+      @users_csv = User.users_limited_canvas_csv( @enrollments_canvas)
     else
       puts "----------------->using all users from enrollment source"
       @users_csv = User.users_canvas_csv(@users)
     end
 
-    @canvases_csv = CanvasCourse.courses_csv(@courses)
+    @canvases_csv = CanvasCourse.courses_csv(@courses,global_options)
     puts "----------------->creating/updating courses"
     puts @canvases_csv
     #puts @moodles_csv
@@ -122,7 +124,7 @@ command :canvas do |c|
 
     token = global_options[:t]
     hostname = global_options[:h]
-    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip?api_key=#{token}")
+    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
     puts url
     req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
     req.add_field("Authorization", "Bearer #{token}")
@@ -136,7 +138,7 @@ command :canvas do |c|
       end
       puts res
     end
-    File.delete(fullpath)
+    #File.delete(fullpath)
 
 
     puts "canvas command ran"
