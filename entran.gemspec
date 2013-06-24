@@ -27,7 +27,7 @@ lib/user.rb
   s.add_development_dependency('rake')
   s.add_development_dependency('rdoc')
   s.add_development_dependency('aruba')
-  s.add_runtime_dependency('gli','2.5.4')
+  s.add_runtime_dependency('gli','2.6.0')
   s.add_runtime_dependency('faraday')
   s.add_runtime_dependency('faraday_middleware')
   s.add_runtime_dependency('nokogiri')
