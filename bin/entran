@@ -30,9 +30,33 @@ module Net
   end
 end
 
+
 include GLI::App
-config_file '.entran.rc'
-program_desc 'Describe your application here'
+program_desc 'Translates enrollment data into various formats and feeds it to target systems'
+
+desc "Config file to use."
+flag [:config], :default_value => [ ".entranrc", "~/.entranrc", "/etc/entran" ], :arg_name => "FILE"
+
+pre do |global,command,options,args|
+  cfgs = global[:config]
+  cfgs = [cfgs] unless cfgs.is_a? Array
+  cfgs.each do |cfg|
+    path = File.expand_path(cfg)
+    begin
+      next if not File.readable?(path) and cfgs == global[:config]
+
+      c = YAML.load IO.read(path)
+      global.merge! c
+      options.merge! c["commands"][command.name.to_sym]
+      break
+    rescue => e
+      exit_now! "Unable to load config from '#{cfg}': #{e.message}"
+    end
+  end
+
+  true
+end
+
 
 version Entran::VERSION
 

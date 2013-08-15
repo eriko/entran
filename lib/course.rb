@@ -1,4 +1,5 @@
 class Course
+  require 'securerandom'
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id, :status, :start_date, :end_date, :offering_type, :terms, :summary
 
 

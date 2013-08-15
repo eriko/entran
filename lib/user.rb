@@ -1,4 +1,5 @@
 class User
+require 'securerandom'
   attr_accessor :user_id, :first_name, :last_name, :login_id, :email
 
 

@@ -19,7 +19,7 @@ require 'net/http/post/multipart'
 # you just need to require this one file in your bin file
 
 def load_files(files, kind, presence, ims_key, banner_host)
-  @ims_xml = Nokogiri::XML(open("https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210"))
+  @ims_xml = Nokogiri::XML(open("https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210",:ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
   @lms_courses_xml = Nokogiri::XML(open("http://#{presence}/feeds/lms_courses.xml"))
   @terms_xml = Nokogiri::XML(open("http://#{presence}/feeds/#{kind}/terms.xml"))
   #@catalog-2013_xml = Nokogiri::XML(open("http://#{banner_host}/banner/public/program/catalog/2013"))
