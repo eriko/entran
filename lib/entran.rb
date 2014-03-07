@@ -2,6 +2,8 @@ require 'entran/version.rb'
 require 'enrollment'
 require 'user'
 require 'course'
+require 'section'
+require 'account'
 require 'term'
 require 'zipruby'
 require 'faraday'
@@ -10,6 +12,7 @@ require 'csv'
 require 'open-uri'
 require 'nokogiri'
 require 'csv'
+require 'powerpack'
 #require 'openssl'
 require 'net/http/post/multipart'
 #require 'canvas'
@@ -18,13 +21,26 @@ require 'net/http/post/multipart'
 # Add requires for other files you add to your project here, so
 # you just need to require this one file in your bin file
 
-def load_files(files, kind, presence, ims_key, banner_host)
-  @ims_xml = Nokogiri::XML(open("https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210", :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-  @lms_courses_xml = Nokogiri::XML(open("http://#{presence}/feeds/lms_courses.xml"))
-  @terms_xml = Nokogiri::XML(open("http://#{presence}/feeds/#{kind}/terms.xml"))
-  @terms_csv = open("http://#{presence}/feeds/#{kind}/terms.csv")
+def load_files(files, kind, presence, ims_key, banner_host,year)
 
-  puts @catalogs.class
+  url = "https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210"
+  puts url
+  @ims_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+
+  url = "http://#{presence}/feeds/#{year}10/#{kind}/lms_courses.xml"
+  puts url
+  @lms_courses_xml = Nokogiri::XML(open(url))
+
+  url = "http://#{presence}/feeds/#{kind}/#{year}/terms.xml"
+  puts url
+  @terms_xml = Nokogiri::XML(open(url))
+
+  url = "http://#{presence}/feeds/#{kind}/#{year}/terms.csv"
+  puts url
+  @terms_csv = open(url)
+
+  #puts @catalogs.class
+  #puts @lms_courses_xml
 
   files[:ims] = @ims_xml
   files[:lms_courses] = @lms_courses_xml

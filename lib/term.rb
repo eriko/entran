@@ -1,5 +1,6 @@
 class Term
-  attr_accessor :term_id, :name, :status, :start_date, :end_date, :season, :acad_year
+  attr_accessor :term_id, :name, :status, :start_date, :end_date,
+                :season, :acad_year, :prime ,:prime_year
 
   def <=>(other)
     self.term_id <=> other.term_id
@@ -29,9 +30,12 @@ class Term
         term.name = term_xml.xpath("./description").text
         term.season = term_xml.xpath("./season").text
         term.status = 'active'
+        term.prime =  term_xml.xpath("./prime").text.to_i
+        term.prime_year =  term_xml.xpath("./prime_year").text.to_i
         term.start_date = Time.parse term_xml.xpath("./start_date").text
         term.end_date = Time.parse term_xml.xpath("./end_date").text
         @terms[term.term_id] = term
+        #puts term
       end
     end
     @terms

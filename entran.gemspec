@@ -27,10 +27,12 @@ lib/user.rb
   s.add_development_dependency('rake')
   s.add_development_dependency('rdoc')
   s.add_development_dependency('aruba')
-  s.add_runtime_dependency('gli','2.6.0')
+  s.add_development_dependency('pry')
+  s.add_runtime_dependency('gli','2.9.0')
   s.add_runtime_dependency('faraday')
   s.add_runtime_dependency('faraday_middleware')
   s.add_runtime_dependency('nokogiri')
   s.add_runtime_dependency('zipruby')
   s.add_runtime_dependency('multipart-post')
+  s.add_runtime_dependency('powerpack')
 end

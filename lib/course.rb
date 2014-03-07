@@ -1,12 +1,16 @@
 class Course
+  require 'pry'
   require 'securerandom'
-  attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id, :status, :start_date, :end_date, :offering_type, :terms, :summary
+  attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
+                :status, :start_date, :end_date, :offering_type, :terms, :summary,
+                :offering_id, :offering_code, :account_id, :sections, :real_term ,:faculty
 
 
   def to_array(kind)
+    #puts "#{course_id} #{long_name} #{real_term}"
     case kind
       when :canvas
-        [course_id, short_name, long_name, 1, first_term.term_id, status, start_date, end_date]
+        [course_id, short_name, long_name, account_id, real_term.term_id, status, start_date, end_date]
       when :moodle
         [long_name, short_name, 'topic', first_term.start_date.strftime('%d/%m/%G'), self.weeks, self.type_display, course_id, summary, 0, 'manual', 1, 'self', 0, 'Self enrollment (Student)', course_password, "Welcome to #{self.long_name}", 5]
     end
@@ -27,6 +31,8 @@ class Course
     end
   end
 
+
+
   def first_term
     self.terms.sort[0]
   end
@@ -38,7 +44,7 @@ class Course
 
   end
 
-  def Course.import_xml(lms_courses_xml, terms, ims_xml, catalogs, kind)
+  def Course.import_xml(lms_courses_xml, terms, ims_xml, catalogs, kind, sections,users)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
@@ -50,42 +56,52 @@ class Course
           #puts "there was a course of #{kind}"
           #course_id will be used as the identifier and for querying the other data sources.
           course_id = website.xpath("./course_id/@id").text
-          course_xml = ims_xml.xpath("//enterprise/group/sourcedid/id[text()='#{course_id}']/../..")
-          #make sure that there is data in the ims feed for the website.  Some offerings
-          #may be listed in presence that have yet to be represented in the ims feed.
-          #this could be because the offering is not a Program and so only gets generated
-          #a couple months before the start of the course.
-          if course_xml.size > 0 #only create courses that are in the ims feed also
-            @course = Object::const_get(website.xpath("./type[text()]").text).new()
-            #puts "@course is of type #{@course.class}"
-            @course.course_id = course_id
-            #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
-            @course.short_name = course_xml.xpath("./description/short[text()]").text
-            @course.long_name = course_xml.xpath("./description/long[text()]").text
-            @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
-            #puts "the course shortname  is #{@course.short_name}"
-            @course.curricular_year = offering.xpath("./curricular_year[text()]").text.to_i
+          @course = Object::const_get(website.xpath("./type[text()]").text).new()
+          #puts "@course is of type #{@course.class}"
+          @course.course_id = course_id
+          @course.offering_id = website.xpath("./offering/@offering_id").text
+          @course.offering_code = website.xpath("./offering/@offering_code").text
+          #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
+          @course.short_name = website.xpath("./short_name").text
+          @course.long_name = website.xpath("./long_name").text
+          @course.account_id = website.xpath("./account_id/@id").text
+          @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
+          @course.sections = []
+          @course.sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
+          @course.faculty = website.xpath("./people/person/@username").collect {|username| users.values.find{|user| user.login_id.eql?(username.to_s)}}
+          #sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
+          #sections.each do |section_id|
+          #  puts "looking for section)id: #{section_id}"
+          #  @course.sections << sections[section_id]
+          #end
+          #puts "the course shortname  is #{@course.short_name}"
+          @course.curricular_year = offering.xpath("./curricular_year[text()]").text.to_i
 
-            #this block was used to get catalog data for the description to be used by moodle
-            #since we are not using this for moodle I have commented it out.
-            #offering_id = offering.xpath("./offeringid").text
-            #puts "the offering id is #{offering_id} is #{offering_id.class}"
-            #Get the catalog description for the offering
-            #@course.summary = catalogs[@course.curricular_year].xpath("/programs/program[@id=#{offering_id}]/description[text()]").text
-            #if @course.summary.nil? || @course.summary.length < 1
-            #  @course.summary = "Summary unavailable at moodle course creation time"
-            #end
-            #puts "the @course.summary is #{@course.summary}"
-            @course.status = 'active'
-            @course.offering_type = offering.xpath("./type[text()]").text
-            @course.start_date = @course.terms.sort[0].start_date.utc.iso8601
-            @course.end_date =@course.terms.sort.last.end_date.utc.iso8601
-            #puts @course.start_date
+          prime_year= website.xpath("./real_term/@term_code").to_s.to_i
+          @course.real_term = terms[prime_year]
+          #puts "the real_term is #{ @course.real_term}"
 
-            #puts @course.course_id
-            @courses[@course.course_id] = @course
-                                 #puts "The course in the hash is #{@courses[@course.class][@course.course_id].course_id} and of type #{@course.class}"
-          end
+          #this block was used to get catalog data for the description to be used by moodle
+          #since we are not using this for moodle I have commented it out.
+          #offering_id = offering.xpath("./offeringid").text
+          #puts "the offering id is #{offering_id} is #{offering_id.class}"
+          #Get the catalog description for the offering
+          #@course.summary = catalogs[@course.curricular_year].xpath("/programs/program[@id=#{offering_id}]/description[text()]").text
+          #if @course.summary.nil? || @course.summary.length < 1
+          #  @course.summary = "Summary unavailable at moodle course creation time"
+          #end
+          #puts "the @course.summary is #{@course.summary}"
+          @course.status = 'active'
+          @course.offering_type = offering.xpath("./type[text()]").text
+          #@course.start_date = @course.terms.sort[0].start_date.utc.iso8601
+          #@course.end_date =@course.terms.sort.last.end_date.utc.iso8601
+          @course.start_date = nil
+          @course.end_date = nil
+          #puts @course.start_date
+
+          #puts @course.course_id
+          @courses[@course.course_id] = @course
+          #puts "The course in the hash is #{@courses[@course.class][@course.course_id].course_id} and of type #{@course.class}"
         end
       end
     end
@@ -97,13 +113,14 @@ class Course
 end
 
 class CanvasCourse < Course
-  def CanvasCourse.courses_csv(courses,global_options)
+  def CanvasCourse.courses_csv(courses, global_options)
     CSV.generate do |csv|
       csv << ["course_id", "short_name", "long_name", "account_id", "term_id", "status", "start_date", "end_date"]
       courses.each do |course_id, course|
-        unless course_created?(course_id,global_options)
+        #TODO filter out courses that have aready been created
+        #unless course_created?(course_id, global_options)
           csv << course.to_array(:canvas)
-        end
+        #end
       end
     end
   end
