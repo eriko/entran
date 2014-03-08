@@ -16,6 +16,8 @@ class Section
       section.section_id = section_xml.xpath("./@section_id").text
       section.course_id = section_xml.xpath("./@course_id").text
       section.name = section_xml.xpath("./@name").text
+      puts section_xml.xpath("./@end_date")
+      #binding.pry
       unless section_xml.xpath("./@end_date").empty?
         section.end_date = Time.parse section_xml.xpath("./@end_date").text
       else
@@ -26,6 +28,8 @@ class Section
       else
         section.start_date = nil
       end
+      puts section.start_date
+      puts section.end_date
       unless section_xml.xpath("./@source_section_id").empty?
         #at this point the data from this is not used as the crosslist groups are provisioned
         #while processing the matching quarters section.
