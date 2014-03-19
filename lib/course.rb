@@ -59,7 +59,8 @@ class Course
           @course = Object::const_get(website.xpath("./type[text()]").text).new()
           #puts "@course is of type #{@course.class}"
           @course.course_id = course_id
-          @course.offering_id = website.xpath("./offering/@offering_id").text
+          #binding.pry
+          @course.offering_id =  offering.xpath("@offering_id").text
           @course.offering_code = website.xpath("./offering/@offering_code").text
           #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
           @course.short_name = website.xpath("./short_name").text

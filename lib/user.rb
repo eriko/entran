@@ -10,9 +10,9 @@ require 'securerandom'
   def to_array(kind)
     case kind
       when :canvas
-        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, "#{login_id}@evergreen.edu", 'active']
+        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, "#{login_id}@evergreen.edu".downcase, 'active']
       when :moodle
-        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, email, 'active']
+        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, email.downcase, 'active']
     end
   end
 
