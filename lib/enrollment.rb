@@ -41,7 +41,7 @@ class Enrollment
     end
   end
 
-  def Enrollment.import_xml(course, enrollments, users)
+  def Enrollment.import_xml(course, enrollments, users,ims_key)
     offering_id = course.offering_id
     enrollment_term = course.enrollment_term
     puts "course offeringcodes are------->#{course.offering_codes}"
@@ -51,7 +51,7 @@ class Enrollment
     crosslist_section = course.sections.detect { |sec| sec.section_id.eql?("#{offering_id}-#{enrollment_term}-cl") }
     #binding.pry
     course.offering_codes.each do |code|
-      url = "http://adminwebtest.evergreen.edu/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=z00berfl!!ts"
+      url = "http://adminwebtest.evergreen.edu/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
       #puts "enrollment_xml for #{course.long_name} is -------->#{enrollment_xml}"
       # start a REPL session

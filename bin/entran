@@ -100,7 +100,7 @@ command :canvas do |c|
     @courses.values.each do |course|
       puts "------------------>working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
-      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users
+      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users ,global_options[:i]
       puts "----------------->course.faculty => #{course.faculty}"
     end
 
