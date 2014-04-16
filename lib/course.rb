@@ -3,13 +3,15 @@ class Course
   require 'securerandom'
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
-                :offering_id, :offering_code, :account_id, :sections, :real_term ,:faculty
+                :offering_id, :offering_code, :account_id, :sections, :real_term ,
+                :faculty,:enrollment_term,:offering_codes
 
 
   def to_array(kind)
     #puts "#{course_id} #{long_name} #{real_term}"
     case kind
       when :canvas
+        puts "the course id being processed is #{course_id}"
         [course_id, short_name, long_name, account_id, real_term.term_id, status, start_date, end_date]
       when :moodle
         [long_name, short_name, 'topic', first_term.start_date.strftime('%d/%m/%G'), self.weeks, self.type_display, course_id, summary, 0, 'manual', 1, 'self', 0, 'Self enrollment (Student)', course_password, "Welcome to #{self.long_name}", 5]
@@ -61,7 +63,12 @@ class Course
           @course.course_id = course_id
           #binding.pry
           @course.offering_id =  offering.xpath("@offering_id").text
-          @course.offering_code = website.xpath("./offering/@offering_code").text
+          @course.enrollment_term = offering.xpath("./enrollment_term/@term_code").text
+          @course.offering_codes = []
+          # start a REPL session
+          #binding.pry
+          @course.offering_codes = offering.xpath("./oars_offerings/oars_offering/@code").collect { |code| code }
+          #puts"offering.oarsofferingcodes--->#{offering.xpath("./oars_offerings")} "
           #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
           @course.short_name = website.xpath("./short_name").text
           @course.long_name = website.xpath("./long_name").text

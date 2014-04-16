@@ -23,9 +23,9 @@ require 'net/http/post/multipart'
 
 def load_files(files, kind, presence, ims_key, banner_host,year)
 
-  url = "https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210"
-  puts url
-  @ims_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+  #url = "https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210"
+  #puts url
+  #@ims_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
 
   url = "http://#{presence}/feeds/#{year}10/#{kind}/lms_courses.xml"
   puts url
@@ -42,7 +42,7 @@ def load_files(files, kind, presence, ims_key, banner_host,year)
   #puts @catalogs.class
   #puts @lms_courses_xml
 
-  files[:ims] = @ims_xml
+  #files[:ims] = @ims_xml
   files[:lms_courses] = @lms_courses_xml
   files[:terms_xml] = @terms_xml
   #files[:catalogs] = @catalogs

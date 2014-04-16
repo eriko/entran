@@ -1,5 +1,5 @@
 class Section
-  attr_accessor :section_id, :course_id, :name, :status, :start_date, :end_date, :source_section_id
+  attr_accessor :section_id, :course_id, :name, :status, :start_date, :end_date, :source_section_id, :term_code
 
   def to_s
     "#{section_id} #{course_id} #{name} #{status} #{start_date} #{end_date}"
@@ -16,7 +16,7 @@ class Section
       section.section_id = section_xml.xpath("./@section_id").text
       section.course_id = section_xml.xpath("./@course_id").text
       section.name = section_xml.xpath("./@name").text
-      puts section_xml.xpath("./@end_date")
+      #puts section_xml.xpath("./@end_date")
       #binding.pry
       unless section_xml.xpath("./@end_date").empty?
         section.end_date = Time.parse section_xml.xpath("./@end_date").text
@@ -28,12 +28,17 @@ class Section
       else
         section.start_date = nil
       end
-      puts section.start_date
-      puts section.end_date
+      #puts section.start_date
+      #puts section.end_date
       unless section_xml.xpath("./@source_section_id").empty?
         #at this point the data from this is not used as the crosslist groups are provisioned
         #while processing the matching quarters section.
         section.source_section_id = section_xml.xpath("./@source_section_id").text
+      end
+      unless section_xml.xpath("./@term_code").empty?
+        #at this point the data from this is not used as the crosslist groups are provisioned
+        #while processing the matching quarters section.
+        section.term_code = section_xml.xpath("./@term_code").text
       end
 
       #puts section

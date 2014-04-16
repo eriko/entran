@@ -1,7 +1,7 @@
 class Enrollment
   attr_accessor :user, :role_id, :course_id, :section_id
 
-  @@roles = {1 => "Student", 2 => "Teacher"}
+  @@roles = {student: "Student", faculty: "Teacher"}
 
   def initialize(user, role_id, course_id, section_id)
     @user = user
@@ -41,36 +41,51 @@ class Enrollment
     end
   end
 
-  def Enrollment.import_xml(course, ims_xml, enrollments, users, offering_id)
-    #puts "the course has #{course.sections.count} sections"
-    course.sections.each do |section|
-      #find out if there is a cross list and if so later we will add an enrollment to it.
-      crosslist = course.sections.detect { |sec| sec.section_id.eql?("#{section.section_id}-cl") }
-      faculty = course.sections.detect { |sec| sec.section_id.eql?("#{offering_id}-faculty") }
-      #puts "looking for people in section #{section}"
+  def Enrollment.import_xml(course, enrollments, users)
+    offering_id = course.offering_id
+    enrollment_term = course.enrollment_term
+    puts "course offeringcodes are------->#{course.offering_codes}"
 
-      ims_xml.xpath("//membership/sourcedid/id[text()='#{section.section_id}']/../../member").each do |member|
-        #puts "the member xml is -------> #{member}"
-        user_id = member.xpath("./sourcedid/id[text()]").text
-        role_id = member.xpath("./role/@roletype").text.to_i
-        @user = users[user_id]
-        if @user.nil?
-          puts "user was nil"
+    faculty_section = course.sections.detect { |sec| sec.section_id.eql?("#{offering_id}-faculty") }
+    student_section = course.sections.detect { |sec| sec.section_id.eql?("#{offering_id}-#{enrollment_term}") }
+    crosslist_section = course.sections.detect { |sec| sec.section_id.eql?("#{offering_id}-#{enrollment_term}-cl") }
+    #binding.pry
+    course.offering_codes.each do |code|
+      url = "http://adminwebtest.evergreen.edu/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=z00berfl!!ts"
+      enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+      #puts "enrollment_xml for #{course.long_name} is -------->#{enrollment_xml}"
+      # start a REPL session
+      #binding.pry
+      enrollment_xml.xpath("./offering/faculty/person").each do |person|
+        user,users = User.import_user_xml(person, users)
+        enrol = Enrollment.new(user, :faculty, course.course_id, faculty_section.section_id)
+        enrollments << enrol
+      end
+      enrollment_xml.xpath("./offering/registered/person").each do |person|
+        user,users = User.import_user_xml(person, users)
+        if student_section
+        enrol = Enrollment.new(user, :faculty, course.course_id, student_section.section_id)
+        enrollments << enrol
         end
-        #TODO  catch error of user in course enrollment but not in the list of users
-        if role_id == 1 #only add students
-          enrol = Enrollment.new(@user, role_id, course.course_id, section.section_id)
+        if crosslist_section
+          enrol = Enrollment.new(user, :faculty, course.course_id, crosslist_section.section_id)
           enrollments << enrol
-          if crosslist #if there is a crosslist use it to add an enrollemnt to it.
-            enrol = Enrollment.new(@user, role_id, course.course_id, crosslist.section_id)
-            enrollments << enrol
-          end
-        elsif role_id == 2  && faculty
-          enrol = Enrollment.new(@user, role_id, course.course_id,"#{offering_id}-faculty" )
+        end
+      end
+      #TODO only do this when waitlist is active
+      enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
+        user,users = User.import_user_xml(person, users)
+        if student_section
+        enrol = Enrollment.new(user, :faculty, course.course_id, student_section.section_id)
+        enrollments << enrol
+        end
+        if crosslist_section
+          enrol = Enrollment.new(user, :faculty, course.course_id, crosslist_section.section_id)
           enrollments << enrol
         end
       end
     end
+
     enrollments
   end
 

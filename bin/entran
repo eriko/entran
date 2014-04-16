@@ -76,8 +76,10 @@ command :canvas do |c|
     @users = Hash.new
     puts "----------------->importing terms"
     @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
-    puts "----------------->importing users"
-    @users = User.import_xml files[:ims]
+    #puts "----------------->importing users"
+    #@users = Hash.new
+
+
     @enrollments_canvas = Array.new
 
 
@@ -88,7 +90,6 @@ command :canvas do |c|
 
     puts "----------------->importing courses"
     @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse" ,@sections,@users
-    @courses.values.each{|course|puts "----------------->course.faculty => #{course.faculty}"}
     puts "----------------->importing accounts"
     @accounts = Account.import_xml files[:lms_courses]
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
@@ -99,8 +100,8 @@ command :canvas do |c|
     @courses.values.each do |course|
       puts "------------------>working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
-      @enrollments_canvas = Enrollment.import_xml course, files[:ims], @enrollments_canvas, @users, course.offering_id
-
+      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users
+      puts "----------------->course.faculty => #{course.faculty}"
     end
 
     unless global_options[:f]

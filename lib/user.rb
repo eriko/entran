@@ -46,20 +46,39 @@ require 'securerandom'
     end
   end
 
-  def User.import_xml(ims_xml)
-    @users = Hash.new
-    ims_xml.xpath("//enterprise/person").each do |person|
-      user_id = person.xpath("./sourcedid/id").text
+ def User.import_user_xml(person_xml,users)
+   #puts "person_xml--------> #{person_xml}"
+   #binding.pry
+   @users = users
+     user_id = person_xml.attribute("id").text
+     @user = @users[user_id]
+     if @user.nil?
+       @user = User.new
+       @user.user_id = user_id
+       @user.last_name = person_xml.attribute("last").text
+       @user.first_name = person_xml.attribute("first").text
+       @user.login_id = person_xml.attribute("username").text
+       @user.email = "#{person_xml.attribute("username").text}@evergreen.edu"
+       @users[@user.user_id] = @user
+       #puts "created user #{@user} with id of #{@user.user_id} of class #{@user.user_id.class}"
+     end
+   [@user,@users]
+ end
+
+  def User.import_xml(enrollment_xml,users)
+    @users = users
+    enrollment_xml.xpath("./person").each do |person|
+      user_id = person.attribute("id").text
       @user = @users[user_id]
       if @user.nil?
         @user = User.new
         @user.user_id = user_id
-        @user.last_name = person.xpath("./name/n/family").text
-        @user.first_name = person.xpath("./name/n/given").text
-        @user.login_id = person.xpath("./userid").text
-        @user.email = person.xpath("./email").text
+        @user.last_name = person.attribute("last").text
+        @user.first_name = person.attribute("first").text
+        @user.login_id = person.attribute("./username").text
+        @user.email = "#{person.attribute("username").text}@evergreen.edu"
         @users[@user.user_id] = @user
-        #puts "created user #{@user} with id of #{@user.user_id} of class #{@user.user_id.class}"
+        puts "created user #{@user} with id of #{@user.user_id} of class #{@user.user_id.class}"
       end
     end
     @users
