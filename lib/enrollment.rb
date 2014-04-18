@@ -52,6 +52,7 @@ class Enrollment
     #binding.pry
     course.offering_codes.each do |code|
       url = "http://adminwebtest.evergreen.edu/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
+      puts url
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
       #puts "enrollment_xml for #{course.long_name} is -------->#{enrollment_xml}"
       # start a REPL session
@@ -60,28 +61,47 @@ class Enrollment
         user,users = User.import_user_xml(person, users)
         enrol = Enrollment.new(user, :faculty, course.course_id, faculty_section.section_id)
         enrollments << enrol
+        course.enrollments << enrol
       end
       enrollment_xml.xpath("./offering/registered/person").each do |person|
         user,users = User.import_user_xml(person, users)
         if student_section
-        enrol = Enrollment.new(user, :faculty, course.course_id, student_section.section_id)
+        enrol = Enrollment.new(user, :student, course.course_id, student_section.section_id)
         enrollments << enrol
+        course.enrollments << enrol
         end
         if crosslist_section
-          enrol = Enrollment.new(user, :faculty, course.course_id, crosslist_section.section_id)
+          enrol = Enrollment.new(user, :student, course.course_id, crosslist_section.section_id)
           enrollments << enrol
+          course.enrollments << enrol
         end
       end
       #TODO only do this when waitlist is active
       enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
         user,users = User.import_user_xml(person, users)
         if student_section
-        enrol = Enrollment.new(user, :faculty, course.course_id, student_section.section_id)
+        enrol = Enrollment.new(user, :student, course.course_id, student_section.section_id)
         enrollments << enrol
+        course.enrollments << enrol
         end
         if crosslist_section
-          enrol = Enrollment.new(user, :faculty, course.course_id, crosslist_section.section_id)
+          enrol = Enrollment.new(user, :student, course.course_id, crosslist_section.section_id)
           enrollments << enrol
+          course.enrollments << enrol
+        end
+      end
+      #TODO only do this when waitlist is active
+      enrollment_xml.xpath("./offering/overrides/person").each do |person|
+        user,users = User.import_user_xml(person, users)
+        if student_section
+        enrol = Enrollment.new(user, :student, course.course_id, student_section.section_id)
+        enrollments << enrol
+        course.enrollments << enrol
+        end
+        if crosslist_section
+          enrol = Enrollment.new(user, :student, course.course_id, crosslist_section.section_id)
+          enrollments << enrol
+          course.enrollments << enrol
         end
       end
     end

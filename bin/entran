@@ -84,7 +84,7 @@ command :canvas do |c|
 
 
     puts "----------------->importing sections"
-    @sections = Section.import_xml files[:lms_courses]
+    @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
     @sections_csv = Section.sections_canvas_csv(@sections)
     #puts "----------------->imported sections #{@sections_csv}"
 
@@ -101,7 +101,7 @@ command :canvas do |c|
       puts "------------------>working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
       @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users ,global_options[:i]
-      puts "----------------->course.faculty => #{course.faculty}"
+      puts "------------->course enrollments count: #{course.enrollments.count}"
     end
 
     unless global_options[:f]

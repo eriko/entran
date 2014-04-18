@@ -4,7 +4,7 @@ class Course
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                 :offering_id, :offering_code, :account_id, :sections, :real_term ,
-                :faculty,:enrollment_term,:offering_codes
+                :enrollment_term,:offering_codes,:enrollments
 
 
   def to_array(kind)
@@ -76,7 +76,8 @@ class Course
           @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
           @course.sections = []
           @course.sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
-          @course.faculty = website.xpath("./people/person/@username").collect {|username| users.values.find{|user| user.login_id.eql?(username.to_s)}}
+          @course.enrollments = []
+          #@course.faculty = website.xpath("./people/person/@username").collect {|username| users.values.find{|user| user.login_id.eql?(username.to_s)}}
           #sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
           #sections.each do |section_id|
           #  puts "looking for section)id: #{section_id}"
