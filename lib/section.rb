@@ -11,7 +11,7 @@ class Section
     #based on the list from presence
     @sections = Hash.new
 
-    binding.pry
+    #binding.pry
     lms_courses_xml.xpath("//website[type='#{kind}']/sections/section").each do |section_xml|
 
       section = Section.new

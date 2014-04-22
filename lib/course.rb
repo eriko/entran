@@ -136,29 +136,3 @@ class CanvasCourse < Course
 end
 
 
-class MoodleCourse < Course
-  def MoodleCourse.courses_csv(courses)
-    CSV.generate do |csv|
-      csv << ["fullname", "shortname", "format", 'startdate', 'numsections', "category", "idnumber", "summary", "visible", 'enrolmethod_1', 'status_1', 'enrolmethod_2', 'status_2', 'name_2', 'password_2', 'customtext1_2', 'roleid_2']
-      #puts "adding courses to courses.xml file with #{courses}"
-      courses.each do |course_id, course|
-        puts course_id
-        csv << course.to_array(:moodle)
-      end
-    end
-  end
-end
-#Enrolment methods need special CSV columns as there can be many per course, and the fields for each
-#method are flexible.The following is an example with two enrolment methods - manual, and self - firstly you need
-#the column identifying the enrolment method enrolmethod_<n>, and then add the corresponding field values subscripted with _<n>.
-#    eg :
-#fullname,  shortname,  category, idnumber, summary,  enrolmethod_1,  status_1, enrolmethod_2,  name_2, password_2, customtext1_2
-#Parent,    Parent,   ,           Parent,   Parent,   manual,         1,        self,           self1,  letmein,    this is a custom message 1
-#Students,  Students, ,           Students, Students, manual,         0,        self,           self2,  letmein,    this is a custom message 2
-#Teachers,  Teachers, ,           Teachers, Teachers, manual,         0,        self,           self3,  letmein,    this is a custom message 3
-
-#fullname, shortname, category, idnumber, summary,
-#    format, showgrades, newsitems, teacher, editingteacher, student, modinfo,
-#    manager, coursecreator, guest, user, startdate, numsections, maxbytes, visible, groupmode, restrictmodules,
-#    enablecompletion, completionstartonenrol, completionnotify, hiddensections, groupmodeforce, lang, theme,
-#    cost, showreports, notifystudents, expirynotify, expirythreshold, requested,

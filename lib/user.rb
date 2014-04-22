@@ -65,23 +65,6 @@ require 'securerandom'
    [@user,@users]
  end
 
-  def User.import_xml(enrollment_xml,users)
-    @users = users
-    enrollment_xml.xpath("./person").each do |person|
-      user_id = person.attribute("id").text
-      @user = @users[user_id]
-      if @user.nil?
-        @user = User.new
-        @user.user_id = user_id
-        @user.last_name = person.attribute("last").text
-        @user.first_name = person.attribute("first").text
-        @user.login_id = person.attribute("./username").text
-        @user.email = "#{person.attribute("username").text}@evergreen.edu"
-        @users[@user.user_id] = @user
-        puts "created user #{@user} with id of #{@user.user_id} of class #{@user.user_id.class}"
-      end
-    end
-    @users
-  end
+
 
 end
