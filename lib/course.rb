@@ -3,15 +3,15 @@ class Course
   require 'securerandom'
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
-                :offering_id, :offering_code, :account_id, :sections, :real_term ,
-                :enrollment_term,:offering_codes,:enrollments
+                :offering_id, :offering_code, :account_id, :sections, :real_term,
+                :enrollment_term, :offering_codes, :enrollments, :faculty
 
 
   def to_array(kind)
     #puts "#{course_id} #{long_name} #{real_term}"
     case kind
       when :canvas
-        puts "the course id being processed is #{course_id}"
+        #puts "the course id being processed is #{course_id}"
         [course_id, short_name, long_name, account_id, real_term.term_id, status, start_date, end_date]
       when :moodle
         [long_name, short_name, 'topic', first_term.start_date.strftime('%d/%m/%G'), self.weeks, self.type_display, course_id, summary, 0, 'manual', 1, 'self', 0, 'Self enrollment (Student)', course_password, "Welcome to #{self.long_name}", 5]
@@ -34,7 +34,6 @@ class Course
   end
 
 
-
   def first_term
     self.terms.sort[0]
   end
@@ -46,7 +45,7 @@ class Course
 
   end
 
-  def Course.import_xml(lms_courses_xml, terms, ims_xml, catalogs, kind, sections,users)
+  def Course.import_xml(lms_courses_xml, terms, ims_xml, catalogs, kind, sections, users)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
@@ -62,7 +61,7 @@ class Course
           #puts "@course is of type #{@course.class}"
           @course.course_id = course_id
           #binding.pry
-          @course.offering_id =  offering.xpath("@offering_id").text
+          @course.offering_id = offering.xpath("@offering_id").text
           @course.enrollment_term = offering.xpath("./enrollment_term/@term_code").text
           @course.offering_codes = []
           # start a REPL session
@@ -74,10 +73,12 @@ class Course
           @course.long_name = website.xpath("./long_name").text
           @course.account_id = website.xpath("./account_id/@id").text
           @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
-          @course.sections = []
-          @course.sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
+          @course.sections = Hash.new
+          website.xpath("./sections/section/@section_id").each { |section_id| @course.sections[section_id.to_s] = sections[section_id.to_s] }
           @course.enrollments = []
-          #@course.faculty = website.xpath("./people/person/@username").collect {|username| users.values.find{|user| user.login_id.eql?(username.to_s)}}
+          @course.faculty = []
+          @course.faculty = website.xpath("./people/person/@username").collect { |username| users.values.find { |user| user.login_id.eql?(username.to_s) } }
+          puts "-------------->the faculty count is: #{@course.faculty.count}"
           #sections = website.xpath("./sections/section/@section_id").collect { |section_id| sections[section_id.to_s] }
           #sections.each do |section_id|
           #  puts "looking for section)id: #{section_id}"
@@ -128,7 +129,7 @@ class CanvasCourse < Course
       courses.each do |course_id, course|
         #TODO filter out courses that have aready been created
         #unless course_created?(course_id, global_options)
-          csv << course.to_array(:canvas)
+        csv << course.to_array(:canvas)
         #end
       end
     end

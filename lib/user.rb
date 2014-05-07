@@ -1,5 +1,5 @@
 class User
-require 'securerandom'
+  require 'securerandom'
   attr_accessor :user_id, :first_name, :last_name, :login_id, :email
 
 
@@ -46,25 +46,45 @@ require 'securerandom'
     end
   end
 
- def User.import_user_xml(person_xml,users)
-   #puts "person_xml--------> #{person_xml}"
-   #binding.pry
-   @users = users
-     user_id = person_xml.attribute("id").text
-     @user = @users[user_id]
-     if @user.nil?
-       @user = User.new
-       @user.user_id = user_id
-       @user.last_name = person_xml.attribute("last").text
-       @user.first_name = person_xml.attribute("first").text
-       @user.login_id = person_xml.attribute("username").text
-       @user.email = "#{person_xml.attribute("username").text}@evergreen.edu"
-       @users[@user.user_id] = @user
-       #puts "created user #{@user} with id of #{@user.user_id} of class #{@user.user_id.class}"
-     end
-   [@user,@users]
- end
+  def User.import_faculty_xml(person_xml, users)
+    #puts "person_xml--------> #{person_xml}"
+    begin
+      #binding.pry
+      @users = users
+      user_id = person_xml.attribute("id").text
+      @user = @users[user_id]
+      if @user.nil?
+        @user = User.new
+        @user.user_id = user_id
+        @user.last_name = person_xml.attribute("display_name").text.split(',')[1].strip
+        @user.first_name = person_xml.attribute("display_name").text.split(',')[0].strip
+        @user.login_id = person_xml.attribute("user_name").text
+        @user.email = "#{person_xml.attribute("user_name").text}@evergreen.edu"
+        @users[@user.user_id] = @user
+      end
+    rescue NoMethodError
+      puts  "person_xml lacks some value--------> #{person_xml}"
+    end
+    @users
+  end
 
+  def User.import_user_xml(person_xml, users)
+    #puts "person_xml--------> #{person_xml}"
+    #binding.pry
+    @users = users
+    user_id = person_xml.attribute("id").text
+    @user = @users[user_id]
+    if @user.nil?
+      @user = User.new
+      @user.user_id = user_id
+      @user.last_name = person_xml.attribute("last").text
+      @user.first_name = person_xml.attribute("first").text
+      @user.login_id = person_xml.attribute("username").text
+      @user.email = "#{person_xml.attribute("username").text}@evergreen.edu"
+      @users[@user.user_id] = @user
+    end
+    [@user, @users]
+  end
 
 
 end

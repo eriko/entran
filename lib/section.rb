@@ -5,7 +5,10 @@ class Section
     "#{section_id} #{course_id} #{name} #{status} #{start_date} #{end_date}"
   end
 
-  def Section.import_xml(lms_courses_xml,kind)
+
+
+
+  def Section.import_xml(lms_courses_xml, kind)
     #The courses to be used are from presence where the course site has been marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
@@ -19,8 +22,8 @@ class Section
       section.course_id = section_xml.xpath("./@course_id").text
       section.name = section_xml.xpath("./@name").text
       #puts section_xml.xpath("./@end_date")
-      puts "--------> the section xml is #{section_xml}"
-      puts "-------> the course and section ids are: #{section.course_id} #{section.section_id}"
+      #puts "--------> the section xml is #{section_xml}"
+      #puts "-------> the course and section ids are: #{section.course_id} #{section.section_id}"
       #binding.pry
       unless section_xml.xpath("./@end_date").empty?
         section.end_date = Time.parse section_xml.xpath("./@end_date").text
@@ -52,16 +55,16 @@ class Section
 
     end
 
-  #puts @sections
-  #puts "the total canvas section count is #{@sections.count}"
-  @sections
+    #puts @sections
+    #puts "the total canvas section count is #{@sections.count}"
+    @sections
   end
 
   def Section.sections_canvas_csv(sections)
     #puts users
     CSV.generate do |csv|
-      csv << ["section_id","course_id","name","status","start_date","end_date"]
-      sections.each do |key,section|
+      csv << ["section_id", "course_id", "name", "status", "start_date", "end_date"]
+      sections.each do |key, section|
         csv << section.to_array(:canvas)
       end
     end
@@ -71,9 +74,9 @@ class Section
     #puts "adding section to csv #{self}"
     case kind
       when :canvas
-        [section_id, course_id,name, "active",start_date,end_date]
+        [section_id, course_id, name, "active", start_date, end_date]
       when :moodle
-        [section_id, course_id,name, "active",start_date,end_date]
+        [section_id, course_id, name, "active", start_date, end_date]
     end
   end
 

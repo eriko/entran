@@ -10,6 +10,7 @@ require 'nokogiri'
 require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
+require 'canvas-api'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -31,13 +32,13 @@ module Net
 end
 
 
- puts Time.now
+puts Time.now
 include GLI::App
 program_desc 'Translates enrollment data into various formats and feeds it to target systems'
 
 config_file '.entran.rc'
 
- puts config_file '.entran.rc'
+puts config_file '.entran.rc'
 
 version Entran::VERSION
 
@@ -71,9 +72,13 @@ command :canvas do |c|
 
     files = Hash.new
     puts "----------------->loading feed files"
-    load_files(files, 'canvas',global_options[:p],global_options[:i],global_options[:b],global_options[:y])
+    load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
 
     @users = Hash.new
+    puts "----------------->importing faculty"
+    files[:offerings_xml].xpath("//faculty").each { |fac| User.import_faculty_xml(fac, @users) }
+    puts "----------------->total faculty: #{@users.count}"
+
     puts "----------------->importing terms"
     @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
     #puts "----------------->importing users"
@@ -89,46 +94,82 @@ command :canvas do |c|
     #puts "----------------->imported sections #{@sections_csv}"
 
     puts "----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse" ,@sections,@users
+    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
     puts "----------------->importing accounts"
     @accounts = Account.import_xml files[:lms_courses]
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
     #puts @courses
     #get people and enrollments
 
-    puts "----------------->creating enrollments"
+
+    puts "----->creating enrollments"
     @courses.values.each do |course|
-      puts "------------------>working on: #{course.long_name}"
+      puts "---------->working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
-      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users ,global_options[:i]
-      puts "------------->course enrollments count: #{course.enrollments.count}"
+      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
+      puts "-------------------->course enrollments count: #{course.enrollments.count}"
     end
 
     unless global_options[:f]
       puts "----------------->limiting users to requested courses"
-      @users_csv = User.users_limited_canvas_csv( @enrollments_canvas)
+      @users_csv = User.users_limited_canvas_csv(@enrollments_canvas)
     else
       puts "----------------->using all users from enrollment source"
       @users_csv = User.users_canvas_csv(@users)
     end
 
     puts "----------------->1 creating/updating courses"
-    @canvases_csv = CanvasCourse.courses_csv(@courses,global_options)
+    @canvases_csv = CanvasCourse.courses_csv(@courses, global_options)
     puts "----------------->2 creating/updating courses"
-    #puts @canvases_csv
-    #puts @moodles_csv
-    #puts @canvases_csv
 
-    #puts @enrollments
-    #@enrollments_moodle_csv = Enrollment.enrollments_moodle_csv(@enrollments_moodle)
+    token = global_options[:t]
+    hostname = global_options[:h]
+    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
+    #binding.pry
+    puts "----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+    @courses.values.each do | course|
+      #puts "/api/v1/courses/sis_course_id:#{course.course_id}"
+      c_courses = begin
+        c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
+        #binding.pry
+        if c_course["id"]
+          #puts c_course
+          #puts "/api/v1/courses/#{c_course["id"]}/sections"
+          c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
+          #puts c_sections
+          #get the one or two sections that are for current enrollment term and just process those two
+          current_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.offering_id}-#{course.enrollment_term}" }
+          current_cl_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.offering_id}-#{course.enrollment_term}-cl" }
+          c_sections = [current_section, current_cl_section]
+          c_sections.compact.each do |c_section|
+            #puts c_section['sis_section_id']
+            #puts "/api/v1/sections/#{c_section["id"]}/enrollments"
+            c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments")
+            #puts c_section_enrollment
+            c_section_enrollment.each do |c_enrollment|
+              #puts c_enrollment
+              #binding.pry
+              user = @users[c_enrollment['user']['sis_user_id']]
+              #puts "sis_user_id #{c_enrollment['user']['sis_user_id']}"
+              #puts user
+              section = course.sections[c_section['sis_section_id']]
+              exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
+              unless exists
+                puts "/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
+                del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                puts "Delete user: #{user} resulted in #{del}"
+              end
+            end
+          end
+        end
+      rescue => error
+        puts "there was an error while processing for rogue enrollments #{error}"
+      end
+    end
+
     @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
     puts "----------------->enrollments: #{@enrollments_canvas.count}"
-    #puts @enrollments_mooodle_csv
-    #puts @enrollments_canvas_csv
 
-    #@terms_csv = Term.term_canvas_csv(@terms)
-    #puts "----------------->terms"
-    #puts @terms_csv
 
 
     puts "creating SIS zip file"
@@ -169,8 +210,8 @@ command :canvas do |c|
 end
 
 
-desc 'Time zone repair for Canvas'
-command :timezone do |c|
+desc 'Add all users to canvas'
+command :canvas_users do |c|
 
 
   c.action do |global_options, options, args|
@@ -181,28 +222,6 @@ command :timezone do |c|
     # raise "that command made no sense"
 
 
-    token = "1567~My9xFDKaHgsUbTbjNpbcXveSWP0jrElZZF8fPKh9q1OCsiajqC4YjkeaOX3pvaxB"
-    hostname = evergreen.instructure.com
-    #token = "1567~My9xFDKaHgsUbTbjNpbcXveSWP0jrElZZF8fPKh9q1OCsiajqC4YjkeaOX3pvaxB"
-    #hostname = evergreen.test.instructure.com
-    url = URI.parse("https://#{hostname}/api/v1/accounts/1/users.json")
-    puts url
-    req = Net::HTTP::Post.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-    req.add_field("Authorization", "Bearer #{token}")
-    n = Net::HTTP.new(url.host, url.port)
-    n.use_ssl = true
-    if global_options[:d]
-      puts "----------------->debug mode so not talking to canvas host"
-    else
-      res = n.start do |http|
-        http.request(req)
-      end
-      puts res
-    end
-    File.delete(fullpath)
-
-
-    puts "canvas command ran"
   end
 end
 

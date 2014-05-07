@@ -27,15 +27,21 @@ def load_files(files, kind, presence, ims_key, banner_host,year)
   #puts url
   #@ims_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
 
-  url = "http://#{presence}/feeds/#{year}10/#{kind}/lms_courses.xml"
+  url = "http://#{banner_host}/banner/public/offerings/export"
+  puts url
+  @offerings_xml = Nokogiri::XML(open(url))
+
+  url = "http://#{presence}/feeds/#{kind}/lms_courses.xml"
   puts url
   @lms_courses_xml = Nokogiri::XML(open(url))
 
-  url = "http://#{presence}/feeds/#{kind}/#{year}/terms.xml"
+  start_year = @lms_courses_xml.xpath("//offering_feed/start_year/@year").text.to_i
+  end_year = @lms_courses_xml.xpath("//offering_feed/end_year/@year").text.to_i
+  url = "http://#{presence}/feeds/#{kind}/#{start_year}/#{end_year}/terms.xml"
   puts url
   @terms_xml = Nokogiri::XML(open(url))
 
-  url = "http://#{presence}/feeds/#{kind}/#{year}/terms.csv"
+  url = "http://#{presence}/feeds/#{kind}/#{start_year}/#{end_year}/terms.csv"
   puts url
   @terms_csv = open(url)
 
@@ -45,7 +51,7 @@ def load_files(files, kind, presence, ims_key, banner_host,year)
   #files[:ims] = @ims_xml
   files[:lms_courses] = @lms_courses_xml
   files[:terms_xml] = @terms_xml
-  #files[:catalogs] = @catalogs
+  files[:offerings_xml] = @offerings_xml
   files[:terms_csv] = @terms_csv
   files
 end
