@@ -15,7 +15,7 @@ class Section
     @sections = Hash.new
 
     #binding.pry
-    lms_courses_xml.xpath("//website[type='#{kind}']/sections/section").each do |section_xml|
+    lms_courses_xml.xpath("//website[type='#{kind}'][created='false']/sections/section").each do |section_xml|
 
       section = Section.new
       section.section_id = section_xml.xpath("./@section_id").text

@@ -4,7 +4,8 @@ class Course
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                 :offering_id, :offering_code, :account_id, :sections, :real_term,
-                :enrollment_term, :offering_codes, :enrollments, :faculty
+                :enrollment_term, :offering_codes, :enrollments, :faculty, :created,
+                :setup, :website_id
 
 
   def to_array(kind)
@@ -60,6 +61,7 @@ class Course
           @course = Object::const_get(website.xpath("./type[text()]").text).new()
           #puts "@course is of type #{@course.class}"
           @course.course_id = course_id
+          @course.website_id = website.xpath("./websiteid/@id").text
           #binding.pry
           @course.offering_id = offering.xpath("@offering_id").text
           @course.enrollment_term = offering.xpath("./enrollment_term/@term_code").text
@@ -72,6 +74,8 @@ class Course
           @course.short_name = website.xpath("./short_name").text
           @course.long_name = website.xpath("./long_name").text
           @course.account_id = website.xpath("./account_id/@id").text
+          @course.created = website.xpath("./created").text.to_bool
+          @course.setup = website.xpath("./setup").text.to_bool
           @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
           @course.sections = Hash.new
           website.xpath("./sections/section/@section_id").each { |section_id| @course.sections[section_id.to_s] = sections[section_id.to_s] }

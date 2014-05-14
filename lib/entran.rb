@@ -1,4 +1,5 @@
 require 'entran/version.rb'
+require 'boolean'
 require 'enrollment'
 require 'user'
 require 'course'
