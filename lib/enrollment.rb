@@ -47,16 +47,19 @@ class Enrollment
   end
 
   def Enrollment.import_xml(course, enrollments, users, ims_key, banner_host)
-    offering_id = course.offering_id
+    offering_id = course.banner_offering_id
     enrollment_term = course.enrollment_term
-    #puts course
+    #puts course.sections
     #puts "course offeringcodes are------->#{course.offering_codes}"
     #puts "finding faculty section"
     faculty_section = course.sections["#{offering_id}-faculty"]
+    #puts "faculty section ---> #{faculty_section}"
     #puts "finding student section for #{enrollment_term} term "
     student_section = course.sections["#{offering_id}-#{enrollment_term}"]
+    #puts "student_section ---> #{student_section}"
     #puts "finding student crosslist section for #{enrollment_term} term "
     crosslist_section = course.sections["#{offering_id}-#{enrollment_term}-cl"]
+    #puts "crosslist_section ---> #{crosslist_section}"
     #binding.pry
     course.offering_codes.each do |code|
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
