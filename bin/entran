@@ -71,6 +71,11 @@ command :canvas do |c|
     puts global_options
 
 
+    token = global_options[:t]
+    hostname = global_options[:h]
+    puts hostname
+    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
+
     files = Hash.new
     puts "----------------->loading feed files"
     load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
@@ -81,7 +86,7 @@ command :canvas do |c|
     puts "----------------->total faculty: #{@users.count}"
 
     puts "----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i, canvas
     #puts "----------------->importing users"
     #@users = Hash.new
 
@@ -95,9 +100,9 @@ command :canvas do |c|
     puts "----------------->imported sections #{@sections_csv}"
 
     puts "----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
+    @courses, canvas_syllabus ,canvas_homepage = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
     puts "----------------->importing accounts"
-    @accounts = Account.import_xml files[:lms_courses]
+    @accounts = Account.import_xml files[:lms_courses], canvas
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
     #puts @courses
     #get people and enrollments
@@ -123,39 +128,62 @@ command :canvas do |c|
     @canvases_csv = CanvasCourse.courses_csv(@courses, global_options)
     puts "----------------->2 creating/updating courses"
 
-    token = global_options[:t]
-    hostname = global_options[:h]
-    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
     #binding.pry
     puts "----------------->Processing enrollment_term sections for rogue enrollements and removing them"
     @courses.values.each do |course|
       #puts "/api/v1/courses/sis_course_id:#{course.course_id}"
-      c_courses = begin
-                    puts course.course_id
+      c_course = nil
+      begin
+        #check to see if course already exists.  If so mark it as created and skip the creation
         c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
-        #binding.pry
+        if c_course["id"] && course.created == false # we have figured out that the course has been created on canvas
+          #but presence does not know about this yet so we will mark it so in presence
+          open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}") { |f|
+            f.each_line { |line| p line }
+          }
+          course.created = true
+          puts "------->already created #{course.long_name} so marked as created"
+          puts "https://#{hostname}/courses/#{c_course['id']}"
+        end
+      rescue Canvas::ApiError => error
+        puts error
+      end
+      begin
+        puts "----------------->Processing course and creating those that do not exist"
+        unless course.created
+          puts "the offering course #{course.long_name.strip} does not exist so we are going to make it"
+          puts "/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
+          c_course = canvas.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
+                                 {
+                                     account_id: @accounts[course.account_id].id,
+                                     'course[sis_course_id]' => course.course_id,
+                                     'course[name]' => course.long_name,
+                                     'course[course_code]' => course.short_name,
+                                     'course[start_at]' => course.first_term.start_date.iso8601,
+                                     'course[allow_student_forum_attachments]' => true,
+                                     'course[term_id]' => course.real_term.c_id,
+                                     'course[course[syllabus_body]]' => canvas_syllabus,
+
+                                 }
+          )
+        end
+      rescue Canvas::ApiError => error
+        puts "The course already existed but was deleted without changing the sis id #{error}"
+        puts c_course
+      end
+      begin
+        puts "----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+        c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
         if c_course["id"]
-          #puts c_course
-          #c_tabs = canvas.get("/api/v1/courses/#{c_course["id"]}/tabs")
-          #puts c_tabs
-          #puts "/api/v1/courses/#{c_course["id"]}/sections"
           c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
-          #puts c_sections
           #get the one or two sections that are for current enrollment term and just process those two
           current_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}" }
           current_cl_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}-cl" }
           c_sections = [current_section, current_cl_section]
           c_sections.compact.each do |c_section|
-            #puts c_section['sis_section_id']
-            #puts "/api/v1/sections/#{c_section["id"]}/enrollments"
             c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments")
-            #puts c_section_enrollment
             c_section_enrollment.each do |c_enrollment|
-              #puts c_enrollment
-              #binding.pry
               user = @users[c_enrollment['user']['sis_user_id']]
-              #puts "sis_user_id #{c_enrollment['user']['sis_user_id']}"
-              #puts user
               section = course.sections[c_section['sis_section_id']]
               exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
               unless exists
@@ -213,7 +241,7 @@ command :canvas do |c|
 end
 
 
-desc 'Add all users to canvas'
+desc 'Canvas course setup'
 command :canvas_setup do |c|
   c.action do |global_options, options, args|
 
@@ -222,43 +250,42 @@ command :canvas_setup do |c|
     # If you have any errors, just raise them
     # raise "that command made no sense"
     puts global_options
-
+    token = global_options[:t]
+    hostname = global_options[:h]
+    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
     files = Hash.new
     puts "----------------->loading feed files"
     load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
 
     puts "----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i , canvas
 
     puts "----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
+    @courses, canvas_syllabus ,canvas_homepage = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
 
     puts "----------------->1 creating/updating courses"
     @canvases_csv = CanvasCourse.courses_csv(@courses, global_options)
     puts "----------------->2 creating/updating courses"
 
-    token = global_options[:t]
-    hostname = global_options[:h]
-    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
     #binding.pry
     puts "----------------->Processing courses for creation and setup"
     @courses.values.each do |course|
       #puts "/api/v1/courses/sis_course_id:#{course.course_id}"
 
       puts "/api/v1/courses/sis_course_id:#{course.course_id}"
+      puts "course.created == #{course.created} && course.setup == #{course.setup}"
       begin
         c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
-        unless c_course['errors']
-          #binding.pry
+        puts c_course
+        if c_course["id"] && course.created == true && course.setup == false
 
-          if c_course["id"] && course.created == true && course.setup == false
-            #create modules
-            course.create_modules(canvas, c_course, hostname)
-            #reorder nav tabs and hide some of them
-            course.setup_tabs(canvas, c_course)
+          course.create_frontpage(canvas, c_course, canvas_homepage)
 
-          end
+          #create modules
+          course.create_modules(canvas, c_course)
+          #reorder nav tabs and hide some of them
+          course.setup_tabs(canvas, c_course)
         end
       rescue Canvas::ApiError => error
         puts error
@@ -292,24 +319,24 @@ command :canvas_created do |c|
     # raise "that command made no sense"
     puts global_options
 
+    token = global_options[:t]
+    hostname = global_options[:h]
+    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
     files = Hash.new
     puts "----------------->loading feed files"
     load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
 
     puts "----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i , canvas
 
     puts "----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
+    @courses, canvas_syllabus ,canvas_homepage = Course.import_xml files[:lms_courses], @terms, files[:ims], @catalogs, "CanvasCourse", @sections, @users
 
     puts "----------------->1 creating/updating courses"
     @canvases_csv = CanvasCourse.courses_csv(@courses, global_options)
     puts "----------------->2 creating/updating courses"
 
-    token = global_options[:t]
-    hostname = global_options[:h]
-    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
     #binding.pry
     puts "----------------->Processing courses for creation and setup"
     @courses.values.each do |course|

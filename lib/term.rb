@@ -1,11 +1,10 @@
 class Term
   attr_accessor :term_id, :name, :status, :start_date, :end_date,
-                :season, :acad_year, :prime ,:prime_year
+                :season, :acad_year, :prime, :prime_year ,:c_id
 
   def <=>(other)
     self.term_id <=> other.term_id
   end
-
 
 
   def to_s
@@ -13,15 +12,26 @@ class Term
   end
 
 
-  def Term.import_xml(terms_xml,curricular_year)
+  def Term.import_xml(terms_xml, curricular_year, canvas)
+    c_terms = Hash.new
+    begin
+      raw_terms = canvas.get("/api/v1/accounts/1/terms",{'workflow_state'=>'all','per_page'=>50})
+      puts "raw_terms.class is #{raw_terms.class}"
+      raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
+      #binding.pry
+        #while raw_terms.more?
+        #  list.next_page!
+        #  raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
+        #end
+
+    rescue => error
+      puts error
+    end
     @terms = Hash.new
     #puts curricular_year
     terms_xml.xpath("//row").each do |term_xml|
       #puts term_xml
       acad_year = term_xml.xpath("./acad_year").text.to_i
-      start_date = Time.parse term_xml.xpath("./start_date").text
-      #puts acad_year
-      #puts acad_year.class
       if acad_year > 2012 && acad_year < curricular_year + 2
         #puts "importing #{acad_year} as it is less than #{ curricular_year + 2}"
         term = Term.new
@@ -30,17 +40,26 @@ class Term
         term.name = term_xml.xpath("./description").text
         term.season = term_xml.xpath("./season").text
         term.status = 'active'
-        term.prime =  term_xml.xpath("./prime").text.to_i
-        term.prime_year =  term_xml.xpath("./prime_year").text.to_i
+        term.prime = term_xml.xpath("./prime").text.to_i
+        term.prime_year = term_xml.xpath("./prime_year").text.to_i
         term.start_date = Time.parse term_xml.xpath("./start_date").text
         term.end_date = Time.parse term_xml.xpath("./end_date").text
+        if c_terms[term.term_id] && c_terms[term.term_id]['id']
+          #binding.pry
+          #puts "adding the canvas term id"
+        term.c_id = c_terms[term.term_id]['id']
+        else
+          #puts "could not find c_term"
+          #puts "c_terms[term.term_id] c_terms[#{term.term_id}] = #{c_terms[term.term_id]}"
+          term.c_id = "not found"
+        end
+        #puts term.c_id
         @terms[term.term_id] = term
         #puts term
       end
     end
     @terms
   end
-
 
 
   def Term.current_term?
@@ -59,6 +78,7 @@ class Term
   def calendar_year()
     self.start_date.year
   end
+
   def Term.calendar_year(term)
     term.calendar_year
   end
@@ -83,6 +103,7 @@ class Term
   def acad_year_display_short
     "#{self.acad_year_short-1}#{self.acad_year_short}"
   end
+
   def Term.acad_year_display_short(term)
     term.acad_year_display_short
   end

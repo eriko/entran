@@ -1,11 +1,13 @@
 class Course
   require 'pry'
   require 'securerandom'
+  require "base64"
+
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                 :banner_offering_id, :offering_id, :offering_code, :account_id, :sections, :real_term,
                 :enrollment_term, :offering_codes, :enrollments, :faculty, :created,
-                :setup, :website_id, :modules, :module_links
+                :setup, :website_id, :modules, :module_links, :kind
 
   def initialize
     @module_links = Hash.new
@@ -22,7 +24,7 @@ class Course
     case kind
       when :canvas
         #puts "the course id being processed is #{course_id}"
-        [course_id, short_name, long_name, account_id, real_term.term_id, status, start_date, end_date]
+        [course_id, short_name, long_name, account_id, real_term.term_id, status, first_term.start_date.iso8601, end_date]
       when :moodle
         [long_name, short_name, 'topic', first_term.start_date.strftime('%d/%m/%G'), self.weeks, self.type_display, course_id, summary, 0, 'manual', 1, 'self', 0, 'Self enrollment (Student)', course_password, "Welcome to #{self.long_name}", 5]
     end
@@ -60,6 +62,8 @@ class Course
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
     @courses = Hash.new
+    canvas_syllabus = Base64.decode64(lms_courses_xml.xpath("/offering_feed/canvas_syllabus").text)
+    canvas_homepage = Base64.decode64(lms_courses_xml.xpath("/offering_feed/canvas_homepage").text)
     lms_courses_xml.xpath("//offering").each do |offering|
       #each offering may have any number of websites with will be processed separately
       offering.xpath("./websites/website").each do |website|
@@ -70,6 +74,7 @@ class Course
           @course = Object::const_get(website.xpath("./type[text()]").text).new()
           #puts "@course is of type #{@course.class}"
           @course.course_id = course_id
+          @course.kind = offering.xpath('./type').text
           @course.website_id = website.xpath("./websiteid/@id").text
           @course.banner_offering_id = offering.xpath("@banner_offering_id").text
           @course.offering_id = offering.xpath("@offering_id").text
@@ -96,8 +101,8 @@ class Course
           #puts "the course shortname  is #{@course.short_name}"
           @course.curricular_year = offering.xpath("./curricular_year[text()]").text.to_i
 
-          prime_year= website.xpath("./real_term/@term_code").to_s.to_i
-          @course.real_term = terms[prime_year]
+          real_term= website.xpath("./real_term/@term_code").to_s.to_i
+          @course.real_term = terms[real_term]
           #puts "the real_term is #{ @course.real_term}"
 
           #this block was used to get catalog data for the description to be used by moodle
@@ -126,10 +131,12 @@ class Course
     end
     #puts @courses
     #puts "the total moodle course count is #{@courses[MoodleCourse.new.class].count}"
-    @courses
+    [@courses, canvas_syllabus, canvas_homepage]
   end
 
-  def create_modules(canvas, c_course, hostname)
+  def create_modules(canvas, c_course)
+    puts '#create module from the list'
+    first_mod = nil
     self.modules.keys.sort.each do |key|
       mod_xml = self.modules[key]
       #create module from the list
@@ -143,20 +150,35 @@ class Course
         first_mod = mod
         c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                             {
-                                'module_item[title]' => 'Sample Header Text [ REPLACE WITH YOUR OWN TEXT ]',
+                                'module_item[title]' => 'This is a sample header - click the settings button to edit tex]',
                                 'module_item[type]' => 'SubHeader',
                                 'module_item[position]' => 1,
                                 'module_item[indent]' => 1,
                                 'module[published]' => false
                             })
+        puts c_mod
         syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
-                               {'wiki_page[title]' => 'Syllabus and Covenant',
-                                'wiki_page[body]' => '[ This is a sample page for a Syllabus and Covenant - click on the settings button to edit ]',
+                               {'wiki_page[title]' => "#{self.kind} Description",
+                                'wiki_page[body]' => '[ Click "Edit" in the upper right to type directly into this page or add/upload a file, such as a PDF or Word doc. ]',
                                 'wiki_page[editing_roles]' => 'teachers',
                                 'wiki_page[published]' => false})
         c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                             {
-                                'module_item[title]' => '[ This is a sample page for a Syllabus and Covenant - click on the settings button to edit ]',
+                                'module_item[title]' => '[ sample page: Description ]',
+                                'module_item[type]' => 'Page',
+                                'module_item[page_url]' => syllabus['url'],
+                                'module_item[position]' => 2,
+                                'module_item[indent]' => 2,
+                                'module[published]' => false
+                            })
+        syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
+                               {'wiki_page[title]' => 'Syllabus and Covenant',
+                                'wiki_page[body]' => '[ Click "Edit" in the upper right to type directly into this page or add/upload a file, such as a PDF or Word doc. ]',
+                                'wiki_page[editing_roles]' => 'teachers',
+                                'wiki_page[published]' => false})
+        c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+                            {
+                                'module_item[title]' => '[ sample page: Syllabus ]',
                                 'module_item[type]' => 'Page',
                                 'module_item[page_url]' => syllabus['url'],
                                 'module_item[position]' => 2,
@@ -164,37 +186,34 @@ class Course
                                 'module[published]' => false
                             })
       end
-      if mod_xml["link"] && mod_xml["first_week"].eql?('true') #create the shell in the first week of the first quarter
+      if mod_xml["first_week"] && mod_xml["first_week"].eql?('true') #create the shell in the first week of the first quarter
         puts "------------> create the shell in the first week of the first quarter"
-        c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
-                            {
-                                'module_item[title]' => '[ This is a sample header - click the settings button to edit text ]',
-                                'module_item[type]' => 'SubHeader',
-                                'module_item[position]' => 1,
-                                'module[published]' => false
-                            })
-        c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
-                            {
-                                'module_item[title]' => '[ To upload a file, click on the plus button and select "File" from the drop-down menu ]',
-                                'module_item[type]' => 'SubHeader',
-                                'module_item[position]' => 1,
-                                'module[published]' => false
-                            })
-        binding.pry
+        fw_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
+                             {
+                                 'module_item[title]' => '[ This is a sample header - click the settings button to edit text ]',
+                                 'module_item[type]' => 'SubHeader',
+                                 'module_item[position]' => 1,
+                                 'module[published]' => false
+                             })
+
       end
-      if mod_xml["link"] && !mod_xml["first_quarter"].eql?('true') #add links to the first module for later quarters
-        puts "------------> external link to internal content of the next quarters modules"
-        c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
-                            {
-                                'module_item[title]' => mod_xml['link'],
-                                'module_item[type]' => 'ExternalUrl',
-                                'module_item[external_url]' => "https://#{hostname}/courses/#{c_course["id"]}/modules#module_#{first_mod["id"]}",
-                                'module_item[new_tab]' => false,
-                                'module_item[position]' => first_mod["id"],
-                                'module[published]' => false
-                            }
-        )
-      end
+      #if mod_xml["link"] && !mod_xml["first_quarter"].eql?('true') #add links to the first module for later quarters
+      #  puts "------------> external link to internal content of the next quarters modules"
+      #  puts c_course
+      #  puts first_mod
+      #  puts hostname
+      #  c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+      #                      {
+      #                          'module_item[title]' => mod_xml['link'],
+      #                          'module_item[type]' => 'ExternalUrl',
+      #                          'module_item[external_url]' => "https://#{hostname}/courses/#{c_course["id"]}/modules#module_#{first_mod["id"]}",
+      #                          'module_item[new_tab]' => true,
+      #                          'module_item[position]' => first_mod["id"],
+      #                          'module[published]' => false
+      #                      }
+      #  )
+      #  puts c_mod
+      #end
 
 
       #canvas.post "/api/v1/courses/#{c_course["id"]}/external_tools",
@@ -231,6 +250,25 @@ class Course
       #        'config_xml' => xml}
 
     end
+  end
+
+  def create_frontpage(canvas, c_course, canvas_frontpage)
+    puts '#create and set frontpage'
+
+
+    syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
+                           {'wiki_page[title]' => 'Front Page',
+                            'wiki_page[body]' => canvas_frontpage,
+                            'wiki_page[editing_roles]' => 'teachers',
+                            'wiki_page[published]' => true,
+                            'wiki_page[front_page]'=> true})
+
+    canvas.put("/api/v1/courses/#{c_course["id"]}",
+               {
+                 'course[default_view]' => 'wiki'
+               }
+    )
+
   end
 
   def setup_tabs(canvas, c_course)
