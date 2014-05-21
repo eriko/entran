@@ -2,11 +2,12 @@ class Course
   require 'pry'
   require 'securerandom'
   require "base64"
+  require 'json'
 
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                 :banner_offering_id, :offering_id, :offering_code, :account_id, :sections, :real_term,
-                :enrollment_term, :offering_codes, :enrollments, :faculty, :created,
+                :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available,
                 :setup, :website_id, :modules, :module_links, :kind
 
   def initialize
@@ -57,13 +58,11 @@ class Course
 
   end
 
-  def Course.import_xml(lms_courses_xml, terms, ims_xml, catalogs, kind, all_sections, users)
+  def Course.import_xml(lms_courses_xml, terms, catalogs, kind, all_sections, users)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
     @courses = Hash.new
-    canvas_syllabus = Base64.decode64(lms_courses_xml.xpath("/offering_feed/canvas_syllabus").text)
-    canvas_homepage = Base64.decode64(lms_courses_xml.xpath("/offering_feed/canvas_homepage").text)
     lms_courses_xml.xpath("//offering").each do |offering|
       #each offering may have any number of websites with will be processed separately
       offering.xpath("./websites/website").each do |website|
@@ -131,10 +130,11 @@ class Course
     end
     #puts @courses
     #puts "the total moodle course count is #{@courses[MoodleCourse.new.class].count}"
-    [@courses, canvas_syllabus, canvas_homepage]
+    @courses
   end
 
-  def create_modules(canvas, c_course)
+
+  def create_modules(canvas, c_course, settings)
     puts '#create module from the list'
     first_mod = nil
     self.modules.keys.sort.each do |key|
@@ -153,13 +153,12 @@ class Course
                                 'module_item[title]' => 'This is a sample header - click the settings button to edit tex]',
                                 'module_item[type]' => 'SubHeader',
                                 'module_item[position]' => 1,
-                                'module_item[indent]' => 1,
                                 'module[published]' => false
                             })
         puts c_mod
         syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
                                {'wiki_page[title]' => "#{self.kind} Description",
-                                'wiki_page[body]' => '[ Click "Edit" in the upper right to type directly into this page or add/upload a file, such as a PDF or Word doc. ]',
+                                'wiki_page[body]' => settings.canvas_module_description,
                                 'wiki_page[editing_roles]' => 'teachers',
                                 'wiki_page[published]' => false})
         c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
@@ -168,12 +167,11 @@ class Course
                                 'module_item[type]' => 'Page',
                                 'module_item[page_url]' => syllabus['url'],
                                 'module_item[position]' => 2,
-                                'module_item[indent]' => 2,
                                 'module[published]' => false
                             })
         syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
                                {'wiki_page[title]' => 'Syllabus and Covenant',
-                                'wiki_page[body]' => '[ Click "Edit" in the upper right to type directly into this page or add/upload a file, such as a PDF or Word doc. ]',
+                                'wiki_page[body]' => settings.canvas_module_syllabus,
                                 'wiki_page[editing_roles]' => 'teachers',
                                 'wiki_page[published]' => false})
         c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
@@ -182,12 +180,11 @@ class Course
                                 'module_item[type]' => 'Page',
                                 'module_item[page_url]' => syllabus['url'],
                                 'module_item[position]' => 2,
-                                'module_item[indent]' => 2,
                                 'module[published]' => false
                             })
       end
       if mod_xml["first_week"] && mod_xml["first_week"].eql?('true') #create the shell in the first week of the first quarter
-        puts "------------> create the shell in the first week of the first quarter"
+        puts "cm------------> create the shell in the first week of the first quarter"
         fw_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
                              {
                                  'module_item[title]' => '[ This is a sample header - click the settings button to edit text ]',
@@ -195,6 +192,20 @@ class Course
                                  'module_item[position]' => 1,
                                  'module[published]' => false
                              })
+
+        week1 = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
+                            {'wiki_page[title]' => 'Week 1 Description',
+                             'wiki_page[body]' => settings.canvas_module_week1,
+                             'wiki_page[editing_roles]' => 'teachers',
+                             'wiki_page[published]' => false})
+        c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
+                            {
+                                'module_item[title]' => '[ sample page: Week 1 Description ]',
+                                'module_item[type]' => 'Page',
+                                'module_item[page_url]' => week1['url'],
+                                'module_item[position]' => 2,
+                                'module[published]' => false
+                            })
 
       end
       #if mod_xml["link"] && !mod_xml["first_quarter"].eql?('true') #add links to the first module for later quarters
@@ -256,22 +267,24 @@ class Course
     puts '#create and set frontpage'
 
 
-    syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
-                           {'wiki_page[title]' => 'Front Page',
-                            'wiki_page[body]' => canvas_frontpage,
-                            'wiki_page[editing_roles]' => 'teachers',
-                            'wiki_page[published]' => true,
-                            'wiki_page[front_page]'=> true})
+    syllabus = canvas.put("/api/v1/courses/#{c_course["id"]}/front_page",
+                          {'wiki_page[title]' => 'New Front Page',
+                           'wiki_page[body]' => canvas_frontpage,
+                           'wiki_page[editing_roles]' => 'teachers',
+                           'wiki_page[published]' => true,
+                           'wiki_page[front_page]' => true,
+                           'wiki_page[hide_from_students]' => false})
 
     canvas.put("/api/v1/courses/#{c_course["id"]}",
                {
-                 'course[default_view]' => 'wiki'
+                   'course[default_view]' => 'wiki'
                }
     )
 
   end
 
   def setup_tabs(canvas, c_course)
+    puts "reorder nav tabs and hide some of them"
     canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
     canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
     canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
@@ -301,6 +314,65 @@ class CanvasCourse < Course
           csv << course.to_array(:canvas)
         end
         #end
+      end
+    end
+  end
+
+  def status_check(global_options)
+    puts "sc-------->Processing course for #{self.long_name} to check it's status"
+    uri = URI.parse("https://#{global_options[:h]}/api/v1/courses/sis_course_id:#{self.course_id}")
+    req = Net::HTTP::Get.new(uri.request_uri)
+    req.add_field("Authorization", "Bearer #{global_options[:t]}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    response = http.request(req)
+
+    course = JSON.parse response.body
+    puts course
+    puts response.code
+    #binding.pry
+    if response.code.to_i == 200 #how to detect that it exists
+
+      if self.created
+        puts "sc-------->course was already marked created"
+      end
+      if self.available && course["workflow_state"].eql?("available")
+        puts "sc-------->course was already marked available"
+      end
+
+      if !self.created
+        open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->marking as created"
+        self.created = true
+      end
+
+      if !self.available && course["workflow_state"].eql?("available")
+        open("http://#{global_options[:p]}/feeds/canvas_available/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->marking as available"
+        self.available = true
+      end
+
+      if self.available && !course["workflow_state"].eql?("available")
+        open("http://#{global_options[:p]}/feeds/canvas_unavailable/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->remarking as unavailable"
+        self.available = false
+      end
+
+
+    elsif response.code.to_i == 404 #not created yet or has been deleted
+      if self.created
+        open("http://#{global_options[:p]}/feeds/canvas_deleted/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->this course was thought created but it was not so marking it as deleted"
+        self.created = false
+        self.available = false
       end
     end
   end

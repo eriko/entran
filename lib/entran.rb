@@ -5,6 +5,7 @@ require 'user'
 require 'course'
 require 'section'
 require 'account'
+require 'settings'
 require 'term'
 require 'zipruby'
 require 'faraday'
@@ -26,9 +27,7 @@ require 'net/http/post/multipart'
 
 def load_files(files, kind, presence, ims_key, banner_host,year)
 
-  #url = "https://#{banner_host}/banner/public/program/feed?feed_type=moodle&key=#{ims_key}&min_term=201210"
-  #puts url
-  #@ims_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+
 
   url = "http://#{banner_host}/banner/public/offerings/export"
   puts url
@@ -48,10 +47,7 @@ def load_files(files, kind, presence, ims_key, banner_host,year)
   puts url
   @terms_csv = open(url)
 
-  #puts @catalogs.class
-  #puts @lms_courses_xml
 
-  #files[:ims] = @ims_xml
   files[:lms_courses] = @lms_courses_xml
   files[:terms_xml] = @terms_xml
   files[:offerings_xml] = @offerings_xml
