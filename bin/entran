@@ -155,6 +155,10 @@ command :canvas do |c|
 
                                  }
           )
+          #mark course created in presence
+          open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}") { |f|
+            f.each_line { |line| p line }
+          }
         end
       rescue Canvas::ApiError => error
         if error.to_s.include?('is already in use')
@@ -276,7 +280,7 @@ command :canvas_setup do |c|
     puts "----------------->Processing courses for creation and setup"
     @courses.values.each do |course|
       #puts "/api/v1/courses/sis_course_id:#{course.course_id}"
-
+       unless course.setup
       puts "/api/v1/courses/sis_course_id:#{course.course_id}"
       puts "course.created == #{course.created} && course.setup == #{course.setup}"
       begin
@@ -295,12 +299,13 @@ command :canvas_setup do |c|
             open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
               f.each_line { |line| p line }
             }
-            course.created = true
+            course.setup = true
           end
         end
       rescue Canvas::ApiError => error
         puts error
       end
+         end
     end
   end
 

@@ -285,19 +285,19 @@ class Course
 
   def setup_tabs(canvas, c_course)
     puts "reorder nav tabs and hide some of them"
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: true, position: 6})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
-    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
     canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: true, position: 6})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
+    canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
   end
 
 end
