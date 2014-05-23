@@ -12,6 +12,11 @@ spec = Gem::Specification.new do |s|
   s.files = %w(
 bin/entran
 lib/entran/version.rb
+lib/account.rb
+lib/boolean.rb
+lib/enrollment.rb
+lib/section.rb
+lib/settings.rb
 lib/entran.rb
 lib/course.rb
 lib/enrollment.rb
