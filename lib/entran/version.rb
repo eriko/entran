@@ -1,3 +1,3 @@
 module Entran
-  VERSION = '0.0.6'
+  VERSION = '0.2.5'
 end

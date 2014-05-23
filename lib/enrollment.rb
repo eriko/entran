@@ -1,9 +1,9 @@
 class Enrollment
-  attr_accessor :user, :role_id, :course, :section ,:status
+  attr_accessor :user, :role_id, :course, :section, :status
 
   @@roles = {student: "Student", faculty: "Teacher"}
 
-  def initialize(user, role_id, course, section,status)
+  def initialize(user, role_id, course, section, status)
     @user = user
     @role_id = role_id
     @course = course
@@ -15,7 +15,7 @@ class Enrollment
     "user #{user} role #{@role_id} course #{@course.course_id}"
   end
 
-  def match(user,course,section)
+  def match(user, course, section)
     @user == user && @course == course && @section == section
   end
 
@@ -74,7 +74,7 @@ class Enrollment
       if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
         puts "--------------->no data from banner so using presence"
         course.faculty.each do |faculty|
-          enrol = Enrollment.new(faculty, :faculty, course, faculty_section,'active')
+          enrol = Enrollment.new(faculty, :faculty, course, faculty_section, 'active')
           enrollments << enrol
           course.enrollments << enrol
         end
@@ -98,32 +98,36 @@ class Enrollment
             course.enrollments << enrol
           end
         end
-        #TODO only do this when waitlist is active
-        enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
-          user, users = User.import_user_xml(person, users)
-          if student_section
-            enrol = Enrollment.new(user, :student, course, student_section, 'active')
-            enrollments << enrol
-            course.enrollments << enrol
-          end
-          if crosslist_section
-            enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
-            enrollments << enrol
-            course.enrollments << enrol
+        #only do this when waitlist is active
+        if course.waitlist
+          enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
+            user, users = User.import_user_xml(person, users)
+            if student_section
+              enrol = Enrollment.new(user, :student, course, student_section, 'active')
+              enrollments << enrol
+              course.enrollments << enrol
+            end
+            if crosslist_section
+              enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
+              enrollments << enrol
+              course.enrollments << enrol
+            end
           end
         end
-        #TODO only do this when waitlist is active
-        enrollment_xml.xpath("./offering/overrides/person").each do |person|
-          user, users = User.import_user_xml(person, users)
-          if student_section
-            enrol = Enrollment.new(user, :student, course, student_section, 'active')
-            enrollments << enrol
-            course.enrollments << enrol
-          end
-          if crosslist_section
-            enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
-            enrollments << enrol
-            course.enrollments << enrol
+        #only do this when waitlist is active
+        if course.override
+          enrollment_xml.xpath("./offering/overrides/person").each do |person|
+            user, users = User.import_user_xml(person, users)
+            if student_section
+              enrol = Enrollment.new(user, :student, course, student_section, 'active')
+              enrollments << enrol
+              course.enrollments << enrol
+            end
+            if crosslist_section
+              enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
+              enrollments << enrol
+              course.enrollments << enrol
+            end
           end
         end
       end
