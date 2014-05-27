@@ -14,9 +14,8 @@ class Account
     #based on the list from presence
     @accounts = Hash.new
     lms_courses_xml.xpath("//account").each do |section_xml|
-
       account = Account.new section_xml.xpath("./@account_id").text ,section_xml.xpath("./@name").text
-
+      @accounts[account.account_id] = account
       begin
         c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
           account.id = c_account['id']
@@ -24,23 +23,14 @@ class Account
       rescue => error
 
       end
-
-
-      @accounts[account.account_id] = account
-
-
     end
-
-    #puts @sections
-    #puts "the total canvas section count is #{@sections.count}"
     @accounts
   end
 
   def Account.accounts_canvas_csv(accounts)
-    #puts users
     CSV.generate do |csv|
       csv << ['account_id', 'parent_account_id', 'name', 'status']
-      accounts.values do |account|
+      accounts.each do |key,account|
         csv << account.to_array(:canvas)
       end
     end

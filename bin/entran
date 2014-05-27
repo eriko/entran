@@ -109,7 +109,9 @@ command :canvas do |c|
 
     puts "----------------->importing accounts"
     @accounts = Account.import_xml(files[:lms_courses], canvas)
+    puts @accounts
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
+    puts @accounts_csv
     #puts @courses
     #get people and enrollments
 
@@ -155,6 +157,7 @@ command :canvas do |c|
           open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}") { |f|
             f.each_line { |line| p line }
           }
+          course.created = true
         end
       rescue Canvas::ApiError => error
         if error.to_s.include?('is already in use')
@@ -217,7 +220,7 @@ command :canvas do |c|
           c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
           puts c_course
           if c_course["id"] && course.created == true && course.setup == false
-
+            puts "setup frontpage = #{course.setup_frontpage}"
             unless course.setup_frontpage
               open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
@@ -226,6 +229,7 @@ command :canvas do |c|
               course.setup_frontpage = true
             end
             #create modules
+            puts "course.setup_modules = #{course.setup_modules}"
             unless course.setup_modules
               open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
@@ -234,6 +238,7 @@ command :canvas do |c|
               course.setup_modules = true
             end
             #reorder nav tabs and hide some of them
+            puts "setup setup_nav = #{course.setup_nav}"
             unless course.setup_nav
               open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
