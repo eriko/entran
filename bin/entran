@@ -11,7 +11,7 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-#require 'pry'
+require 'pry'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -116,33 +116,34 @@ command :canvas do |c|
     #get people and enrollments
 
 
-    puts "----->creating enrollments"
+    puts "ene----->creating enrollments"
     @courses.values.each do |course|
-      puts "---------->working on: #{course.long_name}"
+      puts "ene---------->working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
       @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-      puts "-------------------->course enrollments count: #{course.enrollments.count}"
+      puts "ene-------------------->course enrollments count: #{course.enrollments.count}"
     end
 
     unless global_options[:f]
-      puts "----------------->limiting users to requested courses"
+      puts "enu----------------->limiting users to requested courses"
       @users_csv = User.users_limited_canvas_csv(@enrollments_canvas)
     else
-      puts "----------------->using all users from enrollment source"
+      puts "enu----------------->using all users from enrollment source"
       @users_csv = User.users_canvas_csv(@users)
     end
 
     @courses.values.each do |course|
       course.status_check(global_options)
-      #puts "/api/v1/courses/sis_course_id:#{course.course_id}"
+      puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
       begin
         unless course.created
-          puts "----------------->Processing course and creating those that do not exist"
-          puts "the offering course #{course.long_name.strip} does not exist so we are going to make it"
-          puts "/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
+          puts "enc----------------->Creating course that does not exist"
+          puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
+          puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
+          #binding.pry
           c_course = canvas.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
                                  {
-                                     account_id: @accounts[course.account_id].id,
+                                     'account_id' => @accounts[course.account_id].id,
                                      'course[sis_course_id]' => course.course_id,
                                      'course[name]' => course.long_name,
                                      'course[course_code]' => course.short_name,
@@ -153,27 +154,28 @@ command :canvas do |c|
 
                                  }
           )
+          puts "enc----------------->#{c_course}"
           #mark course created in presence
           open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}") { |f|
-            f.each_line { |line| p line }
+            f.each_line { |line| p "enc----------->#{line}" }
           }
           course.created = true
         end
       rescue Canvas::ApiError => error
         if error.to_s.include?('is already in use')
-          puts "The course already existed but was deleted without changing the sis id #{error}"
+          puts "enc----------------->The course already existed but was deleted without changing the sis id #{error}"
           open("http://#{global_options[:p]}/feeds/canvas_blocked/#{global_options[:k]}/#{course.website_id}") { |f|
-            f.each_line { |line| p line }
+            f.each_line { |line| p "enc----------->#{line}" }
           }
         end
       end
     end
 
     @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
-    puts "----------------->enrollments: #{@enrollments_canvas.count}"
+    puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
 
 
-    puts "----------------->creating SIS zip file and uploading it"
+    puts "ene-------------->creating SIS zip file and uploading it"
     filename = "sis_#{Time.now.to_i.to_s}"
     fullpath = "/tmp/#{filename}.zip"
     puts fullpath
@@ -196,7 +198,7 @@ command :canvas do |c|
     n = Net::HTTP.new(url.host, url.port)
     n.use_ssl = true
     if global_options[:d]
-      puts "----------------->debug mode so not talking to canvas host"
+      puts "ene-------------->debug mode so not talking to canvas host"
     else
       res = n.start do |http|
         http.request(req)
@@ -207,20 +209,21 @@ command :canvas do |c|
       File.delete(fullpath)
     end
 
-    puts "----------------->Processing courses for setup"
+    puts "ensu------------>Processing courses for setup"
     @courses.values.each do |course|
       #the api can error out so we create each area separetely and mark each one
       #as worked on before starting to do the work so that at worst there is
       #something incomplete and not repeatly pounded on. If everything is marked assert_equal
       #as setup_* = true then mark the whole thing as setup.
       unless course.setup
-        puts "/api/v1/courses/sis_course_id:#{course.course_id}"
-        puts "course.created == #{course.created} && course.setup == #{course.setup}"
+        puts "ensu------------>/api/v1/courses/sis_course_id:#{course.course_id}"
+        puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
+        #binding.pry
         begin
           c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
           puts c_course
           if c_course["id"] && course.created == true && course.setup == false
-            puts "setup frontpage = #{course.setup_frontpage}"
+            puts "ensu------------>setup frontpage = #{course.setup_frontpage}"
             unless course.setup_frontpage
               open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
@@ -229,7 +232,7 @@ command :canvas do |c|
               course.setup_frontpage = true
             end
             #create modules
-            puts "course.setup_modules = #{course.setup_modules}"
+            puts "ensu------------>course.setup_modules = #{course.setup_modules}"
             unless course.setup_modules
               open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
@@ -238,7 +241,7 @@ command :canvas do |c|
               course.setup_modules = true
             end
             #reorder nav tabs and hide some of them
-            puts "setup setup_nav = #{course.setup_nav}"
+            puts "ensu------------>setup setup_nav = #{course.setup_nav}"
             unless course.setup_nav
               open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
@@ -248,9 +251,9 @@ command :canvas do |c|
             end
             if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
               #but presence does not know about this yet so we will mark it so in presence
-              open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
-                f.each_line { |line| p line }
-              }
+              o  f.each_line { |line| p line }
+              }pen("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
+
               course.setup = true
             end
           end

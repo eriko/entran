@@ -3,7 +3,7 @@ class Account
   parent_account_id = nil
   status = 'active'
 
-  def initialize(account_id,name)
+  def initialize(account_id, name)
     @account_id = account_id
     @name = name
   end
@@ -14,12 +14,12 @@ class Account
     #based on the list from presence
     @accounts = Hash.new
     lms_courses_xml.xpath("//account").each do |section_xml|
-      account = Account.new section_xml.xpath("./@account_id").text ,section_xml.xpath("./@name").text
+      account = Account.new section_xml.xpath("./@account_id").text, section_xml.xpath("./@name").text
       @accounts[account.account_id] = account
       begin
         c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
-          account.id = c_account['id']
-          puts "that account id for #{account.account_id} is #{account.id}"
+        account.id = c_account['id']
+        puts "that account id for #{account.account_id} is #{account.id}"
       rescue => error
 
       end
@@ -30,7 +30,7 @@ class Account
   def Account.accounts_canvas_csv(accounts)
     CSV.generate do |csv|
       csv << ['account_id', 'parent_account_id', 'name', 'status']
-      accounts.each do |key,account|
+      accounts.each do |key, account|
         csv << account.to_array(:canvas)
       end
     end

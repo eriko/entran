@@ -72,7 +72,7 @@ class Enrollment
       #if the doc is empty except for the XML declaration use the data from
       #presence and the presence feed to enroll the facutly
       if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
-        puts "--------------->no data from banner so using presence"
+        puts "ene--------------->no data from banner so using presence"
         course.faculty.each do |faculty|
           enrol = Enrollment.new(faculty, :faculty, course, faculty_section, 'active')
           enrollments << enrol

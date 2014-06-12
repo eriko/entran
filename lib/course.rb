@@ -336,6 +336,7 @@ class CanvasCourse < Course
 
   def status_check(global_options)
     puts "sc-------->Processing course for #{self.long_name} to check it's status"
+    puts "sc-------->https://#{global_options[:h]}/api/v1/courses/sis_course_id:#{self.course_id}"
     uri = URI.parse("https://#{global_options[:h]}/api/v1/courses/sis_course_id:#{self.course_id}")
     req = Net::HTTP::Get.new(uri.request_uri)
     req.add_field("Authorization", "Bearer #{global_options[:t]}")
@@ -344,8 +345,8 @@ class CanvasCourse < Course
     response = http.request(req)
 
     course = JSON.parse response.body
-    puts course
-    puts response.code
+    puts "sc-------->#{course}"
+    puts "sc-------->#{response.code}"
     #binding.pry
     if response.code.to_i == 200 #how to detect that it exists
 
@@ -384,7 +385,7 @@ class CanvasCourse < Course
     elsif response.code.to_i == 404 #not created yet or has been deleted
       if self.created
         open("http://#{global_options[:p]}/feeds/canvas_deleted/#{global_options[:k]}/#{self.website_id}") { |f|
-          f.each_line { |line| p line }
+          f.each_line { |line| p "sc---->#{line}" }
         }
         puts "sc-------->this course was thought created but it was not so marking it as deleted"
         self.created = false

@@ -47,8 +47,9 @@ class Term
         if c_terms[term.term_id] && c_terms[term.term_id]['id']
           #binding.pry
           #puts "adding the canvas term id"
-        term.c_id = c_terms[term.term_id]['id']
+          term.c_id = c_terms[term.term_id]['id']
         else
+          #binding.pry
           #puts "could not find c_term"
           #puts "c_terms[term.term_id] c_terms[#{term.term_id}] = #{c_terms[term.term_id]}"
           term.c_id = "not found"
