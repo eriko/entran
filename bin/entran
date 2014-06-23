@@ -11,7 +11,7 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-require 'pry'
+#require 'pry'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -251,9 +251,9 @@ command :canvas do |c|
             end
             if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
               #but presence does not know about this yet so we will mark it so in presence
-              o  f.each_line { |line| p line }
-              }pen("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
-
+              open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
+                f.each_line { |line| p line }
+              }
               course.setup = true
             end
           end
@@ -288,55 +288,55 @@ command :canvas_conclude do |c|
     canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
     files = Hash.new
-    puts "----------------->loading feed files"
+    puts "cc----------------->loading feed files"
     load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
 
     @users = Hash.new
-    puts "----------------->importing faculty"
+    puts "cc----------------->importing faculty"
     files[:offerings_xml].xpath("//faculty").each { |fac| User.import_faculty_xml(fac, @users) }
-    puts "----------------->total faculty: #{@users.count}"
+    puts "cc----------------->total faculty: #{@users.count}"
 
-    puts "----------------->importing terms"
+    puts "cc----------------->importing terms"
     @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i, canvas
     #puts "----------------->importing users"
     #@users = Hash.new
 
     @enrollments_canvas = Array.new
 
-    puts "----------------->extract settings from lms file"
+    puts "cc----------------->extract settings from lms file"
     @settings = Settings.new(@lms_courses_xml)
 
-    puts "----------------->importing sections"
+    puts "cc----------------->importing sections"
     @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
     @sections_csv = Section.sections_canvas_csv(@sections)
-    puts "----------------->imported sections "
+    puts "cc----------------->imported sections "
 
-    puts "----------------->importing courses"
+    puts "cc----------------->importing courses"
     @courses = Course.import_xml files[:lms_courses], @terms, @catalogs, "CanvasCourse", @sections, @users
 
-    puts "----------------->extract settings from lms file"
+    puts "cc----------------->extract settings from lms file"
     @settings = Settings.new(files[:lms_courses])
 
-    puts "----------------->importing accounts"
+    puts "cc----------------->importing accounts"
     @accounts = Account.import_xml(files[:lms_courses], canvas)
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
     #puts @courses
     #get people and enrollments
 
 
-    puts "----->creating enrollments"
+    puts "cc----->creating enrollments"
     @courses.values.each do |course|
       puts "---------->working on: #{course.long_name}"
       #course_created?(course.course_id,global_options)
       @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-      puts "-------------------->course enrollments count: #{course.enrollments.count}"
+      puts "cc-------------------->course enrollments count: #{course.enrollments.count}"
     end
 
     unless global_options[:f]
-      puts "----------------->limiting users to requested courses"
+      puts "cc----------------->limiting users to requested courses"
       @users_csv = User.users_limited_canvas_csv(@enrollments_canvas)
     else
-      puts "----------------->using all users from enrollment source"
+      puts "cc----------------->using all users from enrollment source"
       @users_csv = User.users_canvas_csv(@users)
     end
 
@@ -345,24 +345,35 @@ command :canvas_conclude do |c|
       course.status_check(global_options)
       if course.created
         begin
-          puts "----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+          puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
           c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
+          puts "cc----->#{c_course}"
           if c_course["id"]
             c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
+            puts "cc----->#{c_sections}"
             #get the one or two sections that are for current enrollment term and just process those two
             current_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}" }
             current_cl_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}-cl" }
             c_sections = [current_section, current_cl_section]
             c_sections.compact.each do |c_section|
-              c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments")
-              c_section_enrollment.each do |c_enrollment|
-                user = @users[c_enrollment['user']['sis_user_id']]
-                section = course.sections[c_section['sis_section_id']]
-                exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
-                unless exists
-                  puts "/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
-                  del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
-                  puts "Delete user: #{user} resulted in #{del}"
+              c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments?state=active")
+              puts "cc----->#{c_section_enrollment}"
+              more = true
+              while more
+                c_section_enrollment.each do |c_enrollment|
+                  user = @users[c_enrollment['user']['sis_user_id']]
+                  section = course.sections[c_section['sis_section_id']]
+                  exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
+                  unless exists
+                    puts "cc----->/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
+                    del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                    puts "cc----->Delete user: #{user} resulted in #{del}"
+                  end
+                  more = c_section_enrollment.more?
+                  if more
+                    puts "cc----->there are more enrollments so looping"
+                    c_section_enrollment.next_page!
+                  end
                 end
               end
             end

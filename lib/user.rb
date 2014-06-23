@@ -74,7 +74,7 @@ class User
     @users = users
     user_id = person_xml.attribute("id").text
     @user = @users[user_id]
-    if @user.nil?
+    if @user.nil? && person_xml.at("@username") #some faculty enter the system before they have accounts.  Do not try to process them
       @user = User.new
       @user.user_id = user_id
       @user.last_name = person_xml.attribute("last").text

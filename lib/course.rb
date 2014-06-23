@@ -83,7 +83,7 @@ class Course
           #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
           @course.short_name = website.xpath("./short_name").text
           @course.long_name = website.xpath("./long_name").text
-          puts @course.long_name
+          puts "cix-------------->#{@course.long_name}"
           @course.account_id = website.xpath("./account_id/@id").text
           @course.created = website.xpath("./created").text.to_bool
           @course.setup = website.xpath("./setup").text.to_bool
@@ -98,7 +98,7 @@ class Course
           end
           if users #only do this if users is pasted in
             @course.faculty = website.xpath("./people/person/@username").collect { |username| users.values.find { |user| user.login_id.eql?(username.to_s) } }
-            puts "-------------->the faculty count is: #{@course.faculty.count}"
+            puts "cix-------------->the faculty count is: #{@course.faculty.count}"
           end
           website.xpath("./modules/module").collect { |mod| @course.modules[mod["position"].to_s.to_i] = mod }
 

@@ -41,4 +41,5 @@ lib/user.rb
   s.add_runtime_dependency('multipart-post')
   s.add_runtime_dependency('powerpack')
   s.add_runtime_dependency('canvas-api','1.0')
+  #s.add_runtime_dependency('canvas-api')
 end

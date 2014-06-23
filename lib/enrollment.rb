@@ -67,7 +67,6 @@ class Enrollment
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
       #puts "enrollment_xml for #{course.long_name} is -------->#{enrollment_xml}"
       # start a REPL session
-      #binding.pry
       #see if the course is built in banned by looking for an empty document
       #if the doc is empty except for the XML declaration use the data from
       #presence and the presence feed to enroll the facutly
@@ -81,18 +80,20 @@ class Enrollment
       else
         enrollment_xml.xpath("./offering/faculty/person").each do |person|
           user, users = User.import_user_xml(person, users)
-          enrol = Enrollment.new(user, :faculty, course, faculty_section, 'active')
-          enrollments << enrol
-          course.enrollments << enrol
+          if user
+            enrol = Enrollment.new(user, :faculty, course, faculty_section, 'active')
+            enrollments << enrol
+            course.enrollments << enrol
+          end
         end
         enrollment_xml.xpath("./offering/registered/person").each do |person|
           user, users = User.import_user_xml(person, users)
-          if student_section
+          if student_section && user
             enrol = Enrollment.new(user, :student, course, student_section, 'active')
             enrollments << enrol
             course.enrollments << enrol
           end
-          if crosslist_section
+          if crosslist_section && user
             enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
             enrollments << enrol
             course.enrollments << enrol
@@ -102,12 +103,12 @@ class Enrollment
         if course.waitlist
           enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
             user, users = User.import_user_xml(person, users)
-            if student_section
+            if student_section && user
               enrol = Enrollment.new(user, :student, course, student_section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end
-            if crosslist_section
+            if crosslist_section && user
               enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
               enrollments << enrol
               course.enrollments << enrol
@@ -118,12 +119,12 @@ class Enrollment
         if course.override
           enrollment_xml.xpath("./offering/overrides/person").each do |person|
             user, users = User.import_user_xml(person, users)
-            if student_section
+            if student_section && user
               enrol = Enrollment.new(user, :student, course, student_section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end
-            if crosslist_section
+            if crosslist_section && user
               enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
               enrollments << enrol
               course.enrollments << enrol
