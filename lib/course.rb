@@ -275,7 +275,7 @@ class Course
   def create_frontpage(canvas, c_course, canvas_frontpage)
     puts '#create and set frontpage'
     begin
-
+      canvas_frontpage.gsub! '<<course_id>>' , c_course['id'].to_s
       syllabus = canvas.put("/api/v1/courses/#{c_course["id"]}/front_page",
                             {'wiki_page[title]' => 'New Front Page',
                              'wiki_page[body]' => canvas_frontpage,

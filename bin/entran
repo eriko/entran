@@ -350,29 +350,31 @@ command :canvas_conclude do |c|
           puts "cc----->#{c_course}"
           if c_course["id"]
             c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
-            puts "cc----->#{c_sections}"
+            #puts "cc----->#{c_sections}"
             #get the one or two sections that are for current enrollment term and just process those two
             current_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}" }
             current_cl_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}-cl" }
             c_sections = [current_section, current_cl_section]
             c_sections.compact.each do |c_section|
               c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments?state=active")
-              puts "cc----->#{c_section_enrollment}"
-              more = true
-              while more
-                c_section_enrollment.each do |c_enrollment|
-                  user = @users[c_enrollment['user']['sis_user_id']]
-                  section = course.sections[c_section['sis_section_id']]
-                  exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
-                  unless exists
-                    puts "cc----->/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
-                    del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
-                    puts "cc----->Delete user: #{user} resulted in #{del}"
-                  end
-                  more = c_section_enrollment.more?
-                  if more
-                    puts "cc----->there are more enrollments so looping"
-                    c_section_enrollment.next_page!
+              #puts "cc----->#{c_section_enrollment}"
+              if c_section_enrollment.length > 0
+                more = true
+                while more
+                  c_section_enrollment.each do |c_enrollment|
+                    user = @users[c_enrollment['user']['sis_user_id']]
+                    section = course.sections[c_section['sis_section_id']]
+                    exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, course, section) }
+                    unless exists
+                      puts "cc----->/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
+                      del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                      puts "cc----->Delete user: #{user} resulted in #{del}"
+                    end
+                    more = c_section_enrollment.more?
+                    if more
+                      puts "cc----->there are more enrollments so looping"
+                      c_section_enrollment.next_page!
+                    end
                   end
                 end
               end
