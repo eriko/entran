@@ -215,6 +215,7 @@ command :canvas do |c|
       #as worked on before starting to do the work so that at worst there is
       #something incomplete and not repeatly pounded on. If everything is marked assert_equal
       #as setup_* = true then mark the whole thing as setup.
+      #binding.pry
       unless course.setup
         puts "ensu------------>/api/v1/courses/sis_course_id:#{course.course_id}"
         puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
@@ -243,7 +244,7 @@ command :canvas do |c|
             #reorder nav tabs and hide some of them
             puts "ensu------------>setup setup_nav = #{course.setup_nav}"
             unless course.setup_nav
-              open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
+              open("http://#{global_options[:p]}/feeds/canvas_setup_nav/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
               }
               course.setup_tabs(canvas, c_course)
