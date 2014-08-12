@@ -156,7 +156,7 @@ class Course
           first_mod = mod
           c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                               {
-                                  'module_item[title]' => 'This is a sample header - click the settings button to edit tex]',
+                                  'module_item[title]' => 'This is a sample header - click the settings button (gear icon at right) to edit text.]',
                                   'module_item[type]' => 'SubHeader',
                                   'module_item[position]' => 1,
                                   'module[published]' => false
@@ -193,7 +193,7 @@ class Course
           puts "cm------------> create the shell in the first week of the first quarter"
           fw_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
                                {
-                                   'module_item[title]' => '[ This is a sample header - click the settings button to edit text ]',
+                                   'module_item[title]' => '[ This is a sample header - click the settings button (gear icon at right) to edit text. ]',
                                    'module_item[type]' => 'SubHeader',
                                    'module_item[position]' => 1,
                                    'module[published]' => false
@@ -206,7 +206,7 @@ class Course
                                'wiki_page[published]' => false})
           c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
                               {
-                                  'module_item[title]' => '[ sample page: Week 1 Description ]',
+                                  'module_item[title]' => '[ sample page: Week 1 Overview ]',
                                   'module_item[type]' => 'Page',
                                   'module_item[page_url]' => week1['url'],
                                   'module_item[position]' => 2,
