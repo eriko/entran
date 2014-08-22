@@ -63,7 +63,7 @@ class User
         @users[@user.user_id] = @user
       end
     rescue NoMethodError
-      puts  "person_xml lacks some value--------> #{person_xml}"
+      puts "person_xml lacks some value--------> #{person_xml}"
     end
     @users
   end
@@ -84,6 +84,28 @@ class User
       @users[@user.user_id] = @user
     end
     [@user, @users]
+  end
+
+  def User.import_students_xml(offering_xml, users, ims_key, banner_host)
+    url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{offering_xml.attribute("code")}&term_code=#{offering_xml.attribute("enrollment_term")}&key=#{ims_key}"
+    #puts url
+    enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+
+    unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
+      #if there is not data in the file do not do anything
+      #if there is data only do the students
+      enrollment_xml.xpath("./offering/registered/person").each do |person|
+        user, users = User.import_user_xml(person, users)
+      end
+      enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
+        user, users = User.import_user_xml(person, users)
+      end
+
+      enrollment_xml.xpath("./offering/overrides/person").each do |person|
+        user, users = User.import_user_xml(person, users)
+      end
+    end
+    users
   end
 
 

@@ -59,6 +59,10 @@ class Enrollment
     #puts "student_section ---> #{student_section}"
     #puts "finding student crosslist section for #{enrollment_term} term "
     crosslist_section = course.sections["#{offering_id}-#{enrollment_term}-cl"]
+    student_sections = [ student_section , crosslist_section]
+    student_sections << course.sections["#{offering_id}-#{enrollment_term}-media-cl"]
+    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-science-cl"]
+    student_sections.compact!
     #puts "crosslist_section ---> #{crosslist_section}"
     #binding.pry
     course.offering_codes.each do |code|
@@ -88,13 +92,8 @@ class Enrollment
         end
         enrollment_xml.xpath("./offering/registered/person").each do |person|
           user, users = User.import_user_xml(person, users)
-          if student_section && user
-            enrol = Enrollment.new(user, :student, course, student_section, 'active')
-            enrollments << enrol
-            course.enrollments << enrol
-          end
-          if crosslist_section && user
-            enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
+          student_sections.each do |section|
+            enrol = Enrollment.new(user, :student, course, section, 'active')
             enrollments << enrol
             course.enrollments << enrol
           end
@@ -103,13 +102,8 @@ class Enrollment
         if course.waitlist
           enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
             user, users = User.import_user_xml(person, users)
-            if student_section && user
-              enrol = Enrollment.new(user, :student, course, student_section, 'active')
-              enrollments << enrol
-              course.enrollments << enrol
-            end
-            if crosslist_section && user
-              enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
+            student_sections.each do |section|
+              enrol = Enrollment.new(user, :student, course, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end
@@ -119,13 +113,8 @@ class Enrollment
         if course.override
           enrollment_xml.xpath("./offering/overrides/person").each do |person|
             user, users = User.import_user_xml(person, users)
-            if student_section && user
-              enrol = Enrollment.new(user, :student, course, student_section, 'active')
-              enrollments << enrol
-              course.enrollments << enrol
-            end
-            if crosslist_section && user
-              enrol = Enrollment.new(user, :student, course, crosslist_section, 'active')
+            student_sections.each do |section|
+              enrol = Enrollment.new(user, :student, course, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end

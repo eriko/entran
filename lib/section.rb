@@ -1,11 +1,9 @@
 class Section
-  attr_accessor :section_id, :course_id, :name, :status, :start_date, :end_date, :source_section_id, :term_code
+  attr_accessor :section_id, :course_id, :crosslist_course_id, :name, :status, :start_date, :end_date, :source_section_id, :term_code
 
   def to_s
     "#{section_id} #{course_id} #{name} #{status} #{start_date} #{end_date}"
   end
-
-
 
 
   def Section.import_xml(lms_courses_xml, kind)
@@ -34,6 +32,11 @@ class Section
         section.start_date = Time.parse section_xml.xpath("./@start_date").text
       else
         section.start_date = nil
+      end
+      unless section_xml.xpath("./@crosslist_course_id").empty?
+        section.crosslist_course_id =  section_xml.xpath("./@crosslist_course_id").text
+      else
+        section.crosslist_course_id = nil
       end
       #puts section.start_date
       #puts section.end_date
