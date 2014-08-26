@@ -11,7 +11,8 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-#require 'pry'
+require 'pry'
+require 'pandarus'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -75,6 +76,10 @@ command :canvas do |c|
     token = global_options[:t]
     hostname = global_options[:h]
     puts hostname
+    client = Pandarus::Client.new(
+        prefix: "https://#{hostname}/api",
+        token: token)
+
     canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
     files = Hash.new
@@ -87,7 +92,7 @@ command :canvas do |c|
     puts "----------------->total faculty: #{@users.count}"
 
     puts "----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i, canvas
+    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i ,canvas,client
     #puts "----------------->importing users"
     #@users = Hash.new
 
@@ -107,6 +112,7 @@ command :canvas do |c|
     puts "----------------->extract settings from lms file"
     @settings = Settings.new(files[:lms_courses])
 
+    binding.pry
     puts "----------------->importing accounts"
     @accounts = Account.import_xml(files[:lms_courses], canvas)
     puts @accounts

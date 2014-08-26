@@ -12,10 +12,13 @@ class Term
   end
 
 
-  def Term.import_xml(terms_xml, curricular_year, canvas)
+  def Term.import_xml(terms_xml, curricular_year, canvas , client)
     c_terms = Hash.new
     begin
       raw_terms = canvas.get("/api/v1/accounts/1/terms",{'workflow_state'=>'all','per_page'=>50})
+      binding.pry
+      client_raw_terms = client.list_enrollment_terms(1, {workflow_state: 'all'})
+      binding.pry
       puts "raw_terms.class is #{raw_terms.class}"
       raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
       #binding.pry

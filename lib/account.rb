@@ -18,6 +18,7 @@ class Account
       @accounts[account.account_id] = account
       begin
         c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
+        c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
         account.id = c_account['id']
         puts "that account id for #{account.account_id} is #{account.id}"
       rescue => error
