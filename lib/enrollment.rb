@@ -1,12 +1,11 @@
 class Enrollment
-  attr_accessor :user, :role_id, :course, :section, :status
+  attr_accessor :user, :role_id, :section, :status
 
   @@roles = {student: "Student", faculty: "Teacher"}
 
-  def initialize(user, role_id, course, section, status)
+  def initialize(user, role_id, section, status)
     @user = user
     @role_id = role_id
-    @course = course
     @section = section
     @status = status
   end
@@ -15,14 +14,14 @@ class Enrollment
     "user #{user} role #{@role_id} course #{@course.course_id}"
   end
 
-  def match(user, course, section)
-    @user == user && @course == course && @section == section
+  def match(user, section)
+    @user == user &&  @section == section
   end
 
   def to_array(kind)
     case kind
       when :canvas
-        [@course.course_id, @user.user_id, @@roles[role_id], @section.section_id, status, nil]
+        [@section.course_id, @user.user_id, @@roles[role_id], @section.section_id, status, nil]
       when :moodle
         [@course_id, @user.user_id, @@roles[role_id], nil, 'active', nil]
     end
@@ -77,7 +76,7 @@ class Enrollment
       if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
         puts "ene--------------->no data from banner so using presence"
         course.faculty.each do |faculty|
-          enrol = Enrollment.new(faculty, :faculty, course, faculty_section, 'active')
+          enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
           enrollments << enrol
           course.enrollments << enrol
         end
@@ -85,7 +84,7 @@ class Enrollment
         enrollment_xml.xpath("./offering/faculty/person").each do |person|
           user, users = User.import_user_xml(person, users)
           if user
-            enrol = Enrollment.new(user, :faculty, course, faculty_section, 'active')
+            enrol = Enrollment.new(user, :faculty, faculty_section, 'active')
             enrollments << enrol
             course.enrollments << enrol
           end
@@ -93,7 +92,7 @@ class Enrollment
         enrollment_xml.xpath("./offering/registered/person").each do |person|
           user, users = User.import_user_xml(person, users)
           student_sections.each do |section|
-            enrol = Enrollment.new(user, :student, course, section, 'active')
+            enrol = Enrollment.new(user, :student, section, 'active')
             enrollments << enrol
             course.enrollments << enrol
           end
@@ -103,7 +102,7 @@ class Enrollment
           enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
             user, users = User.import_user_xml(person, users)
             student_sections.each do |section|
-              enrol = Enrollment.new(user, :student, course, section, 'active')
+              enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end
@@ -114,7 +113,7 @@ class Enrollment
           enrollment_xml.xpath("./offering/overrides/person").each do |person|
             user, users = User.import_user_xml(person, users)
             student_sections.each do |section|
-              enrol = Enrollment.new(user, :student, course, section, 'active')
+              enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
             end

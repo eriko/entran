@@ -25,6 +25,15 @@ require 'net/http/post/multipart'
 # Add requires for other files you add to your project here, so
 # you just need to require this one file in your bin file
 
+class String
+  def to_bool
+    return true if self =~ (/^(true|t|yes|y|1)$/i)
+    return false if self.empty? || self =~ (/^(false|f|no|n|0)$/i)
+
+    raise ArgumentError.new "invalid value: #{self}"
+  end
+end
+
 def load_files(files, kind, presence, ims_key, banner_host,year)
 
 
