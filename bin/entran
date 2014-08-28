@@ -112,9 +112,9 @@ command :canvas do |c|
     puts "----------------->extract settings from lms file"
     @settings = Settings.new(files[:lms_courses])
 
-    binding.pry
+    #binding.pry
     puts "----------------->importing accounts"
-    @accounts = Account.import_xml(files[:lms_courses], canvas)
+    @accounts = Account.import_xml(files[:lms_courses], canvas,client)
     puts @accounts
     @accounts_csv = Account.accounts_canvas_csv(@accounts)
     puts @accounts_csv
@@ -139,7 +139,7 @@ command :canvas do |c|
     end
 
     @courses.values.each do |course|
-      course.status_check(global_options)
+      course.status_check(global_options,client)
       puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
       begin
         unless course.created
@@ -147,7 +147,7 @@ command :canvas do |c|
           puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
           puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
           #binding.pry
-          c_course = canvas.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
+          c_course = canvas.create_new_course("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
                                  {
                                      'account_id' => @accounts[course.account_id].id,
                                      'course[sis_course_id]' => course.course_id,
@@ -160,6 +160,19 @@ command :canvas do |c|
 
                                  }
           )
+          #c_course = client.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
+          #                       {
+          #                           'account_id' => @accounts[course.account_id].id,
+          #                           'course[sis_course_id]' => course.course_id,
+          #                           'course[name]' => course.long_name,
+          #                           'course[course_code]' => course.short_name,
+          #                           'course[start_at]' => course.first_term.start_date.iso8601,
+          #                           'course[allow_student_forum_attachments]' => true,
+          #                           'course[term_id]' => course.real_term.c_id,
+          #                           'course[syllabus_body]' => @settings.canvas_syllabus,
+          #
+          #                       }
+          #)
           puts "enc----------------->#{c_course}"
           #mark course created in presence
           open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}") { |f|

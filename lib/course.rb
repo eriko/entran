@@ -334,26 +334,28 @@ class CanvasCourse < Course
     end
   end
 
-  def status_check(global_options)
+  def status_check(global_options,client)
     puts "sc-------->Processing course for #{self.long_name} to check it's status"
     puts "sc-------->https://#{global_options[:h]}/api/v1/courses/sis_course_id:#{self.course_id}"
-    uri = URI.parse("https://#{global_options[:h]}/api/v1/courses/sis_course_id:#{self.course_id}")
-    req = Net::HTTP::Get.new(uri.request_uri)
-    req.add_field("Authorization", "Bearer #{global_options[:t]}")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl = true
-    response = http.request(req)
 
-    course = JSON.parse response.body
-    puts "sc-------->#{course}"
-    puts "sc-------->#{response.code}"
-    #binding.pry
-    if response.code.to_i == 200 #how to detect that it exists
+    found = true
+    begin
+      c_course = client.get_single_course_courses("sis_course_id:#{self.course_id}")
+    rescue Footrest::HttpError::NotFound => e
+
+      found = false
+      puts "c_account was not found"
+      puts "---->#{e}"
+
+    end
+    puts found
+    binding.pry
+    if found #how to detect that it exists
 
       if self.created
         puts "sc-------->course was already marked created"
       end
-      if self.available && course["workflow_state"].eql?("available")
+      if self.available && c_course.workflow_state.eql?("available")
         puts "sc-------->course was already marked available"
       end
 
@@ -365,7 +367,7 @@ class CanvasCourse < Course
         self.created = true
       end
 
-      if !self.available && course["workflow_state"].eql?("available")
+      if !self.available && c_course.workflow_state.eql?("available")
         open("http://#{global_options[:p]}/feeds/canvas_available/#{global_options[:k]}/#{self.website_id}") { |f|
           f.each_line { |line| p line }
         }
@@ -373,7 +375,7 @@ class CanvasCourse < Course
         self.available = true
       end
 
-      if self.available && !course["workflow_state"].eql?("available")
+      if self.available && !c_course.workflow_state.eql?("available")
         open("http://#{global_options[:p]}/feeds/canvas_unavailable/#{global_options[:k]}/#{self.website_id}") { |f|
           f.each_line { |line| p line }
         }
@@ -382,7 +384,7 @@ class CanvasCourse < Course
       end
 
 
-    elsif response.code.to_i == 404 #not created yet or has been deleted
+    else #not created yet or has been deleted
       if self.created
         open("http://#{global_options[:p]}/feeds/canvas_deleted/#{global_options[:k]}/#{self.website_id}") { |f|
           f.each_line { |line| p "sc---->#{line}" }
