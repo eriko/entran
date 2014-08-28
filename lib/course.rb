@@ -349,7 +349,7 @@ class CanvasCourse < Course
 
     end
     puts found
-    binding.pry
+    #binding.pry
     if found #how to detect that it exists
 
       if self.created
@@ -360,7 +360,7 @@ class CanvasCourse < Course
       end
 
       if !self.created
-        open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{self.website_id}/#{course["id"]}") { |f|
+        open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{self.website_id}/#{c_course.id}") { |f|
           f.each_line { |line| p line }
         }
         puts "sc-------->marking as created"

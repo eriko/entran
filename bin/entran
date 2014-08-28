@@ -146,8 +146,8 @@ command :canvas do |c|
           puts "enc----------------->Creating course that does not exist"
           puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
           puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
-          #binding.pry
-          c_course = canvas.create_new_course("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
+          binding.pry
+          c_course = client.create_new_course(@accounts[course.account_id].account_id,
                                  {
                                      'account_id' => @accounts[course.account_id].id,
                                      'course[sis_course_id]' => course.course_id,
