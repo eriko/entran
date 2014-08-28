@@ -306,7 +306,7 @@ class Course
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: true, position: 6})
+      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: false, position: 6})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
@@ -360,7 +360,7 @@ class CanvasCourse < Course
       end
 
       if !self.created
-        open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{self.website_id}") { |f|
+        open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{self.website_id}/#{course["id"]}") { |f|
           f.each_line { |line| p line }
         }
         puts "sc-------->marking as created"
