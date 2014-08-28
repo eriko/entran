@@ -63,7 +63,14 @@ class Enrollment
     student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-science-cl"]
     student_sections.compact!
     #puts "crosslist_section ---> #{crosslist_section}"
-    #binding.pry
+    if course.offering_codes.empty?
+      puts "ene--------------->No offering codes so using presence data"
+      course.faculty.each do |faculty|
+        enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
+        enrollments << enrol
+        course.enrollments << enrol
+      end
+    end
     course.offering_codes.each do |code|
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
       #puts url
