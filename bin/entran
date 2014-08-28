@@ -175,7 +175,7 @@ command :canvas do |c|
           #)
           puts "enc----------------->#{c_course}"
           #mark course created in presence
-          open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{course["id"]}") { |f|
+          open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
             f.each_line { |line| p "enc----------->#{line}" }
           }
           course.created = true
