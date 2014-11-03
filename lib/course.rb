@@ -139,78 +139,78 @@ class Course
   end
 
 
-  def create_modules(canvas, c_course, settings)
+  def create_modules(client, c_course, settings)
     puts '#create module from the list'
     first_mod = nil
     begin
       self.modules.keys.sort.each do |key|
         mod_xml = self.modules[key]
         #create module from the list
-        mod = canvas.post "/api/v1/courses/#{c_course["id"]}/modules",
-                          {'module[position]' => key,
-                           'module[name]' => mod_xml["name"],
-                           'module[published]' => true
+        mod = client.create_module c_course["id"],
+                          {'module__position__' => key,
+                           'module__name__' => mod_xml["name"],
+                           'module__published__' => true
                           }
         puts mod_xml
         if mod_xml["first_quarter"].eql?('true') #create the shell parts in the first module of the first quarter
           first_mod = mod
-          c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                               {
-                                  'module_item[title]' => 'This is a sample header - click the settings button (gear icon at right) to edit text.]',
-                                  'module_item[type]' => 'SubHeader',
-                                  'module_item[position]' => 1,
-                                  'module[published]' => false
+                                  'module_item__title__' => '[This is a sample header - click the settings button (gear icon at right) to edit text.]',
+                                  'module_item__type__' => 'SubHeader',
+                                  'module_item__position__' => 1,
+                                  'module__published__' => false
                               })
           puts c_mod
-          syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
-                                 {'wiki_page[title]' => "#{self.kind} Description",
-                                  'wiki_page[body]' => settings.canvas_module_description,
-                                  'wiki_page[editing_roles]' => 'teachers',
-                                  'wiki_page[published]' => false})
-          c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+          syllabus = client.post("/api/v1/courses/#{c_course["id"]}/pages",
+                                 {'wiki_page__title__' => "#{self.kind} Description",
+                                  'wiki_page__body__' => settings.client_module_description,
+                                  'wiki_page__editing_roles__' => 'teachers',
+                                  'wiki_page__published__' => false})
+          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod__"id"]}/items",
                               {
-                                  'module_item[title]' => '[ sample page: Description ]',
-                                  'module_item[type]' => 'Page',
-                                  'module_item[page_url]' => syllabus['url'],
-                                  'module_item[position]' => 2,
-                                  'module[published]' => false
+                                  'module_item__title__' => '[ sample page: Description ]',
+                                  'module_item__type__' => 'Page',
+                                  'module_item__page_url__' => syllabus['url'],
+                                  'module_item__position__' => 2,
+                                  'module__published__' => false
                               })
-          syllabus = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
-                                 {'wiki_page[title]' => 'Syllabus and Covenant',
-                                  'wiki_page[body]' => settings.canvas_module_syllabus,
-                                  'wiki_page[editing_roles]' => 'teachers',
-                                  'wiki_page[published]' => false})
-          c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+          syllabus = client.post("/api/v1/courses/#{c_course["id"]}/pages",
+                                 {'wiki_page__title__' => 'Syllabus and Covenant',
+                                  'wiki_page__body__' => settings.client_module_syllabus,
+                                  'wiki_page__editing_roles__' => 'teachers',
+                                  'wiki_page__published__' => false})
+          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                               {
-                                  'module_item[title]' => '[ sample page: Syllabus ]',
-                                  'module_item[type]' => 'Page',
-                                  'module_item[page_url]' => syllabus['url'],
-                                  'module_item[position]' => 2,
-                                  'module[published]' => false
+                                  'module_item__title__' => '[ sample page: Syllabus ]',
+                                  'module_item__type__' => 'Page',
+                                  'module_item__page_url__' => syllabus['url'],
+                                  'module_item__position__' => 2,
+                                  'module__published__' => false
                               })
         end
         if mod_xml["first_week"] && mod_xml["first_week"].eql?('true') #create the shell in the first week of the first quarter
           puts "cm------------> create the shell in the first week of the first quarter"
-          fw_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
+          fw_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
                                {
-                                   'module_item[title]' => '[ This is a sample header - click the settings button (gear icon at right) to edit text. ]',
-                                   'module_item[type]' => 'SubHeader',
-                                   'module_item[position]' => 1,
-                                   'module[published]' => false
+                                   'module_item__title__' => '[ This is a sample header - click the settings button (gear icon at right) to edit text. ]',
+                                   'module_item__type__' => 'SubHeader',
+                                   'module_item__position__' => 1,
+                                   'module__published__' => false
                                })
 
-          week1 = canvas.post("/api/v1/courses/#{c_course["id"]}/pages",
-                              {'wiki_page[title]' => 'Week 1 Description',
-                               'wiki_page[body]' => settings.canvas_module_week1,
-                               'wiki_page[editing_roles]' => 'teachers',
-                               'wiki_page[published]' => false})
-          c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
+          week1 = client.post("/api/v1/courses/#{c_course["id"]}/pages",
+                              {'wiki_page__title__' => 'Week 1 Description',
+                               'wiki_page__body__' => settings.client_module_week1,
+                               'wiki_page__editing_roles__' => 'teachers',
+                               'wiki_page__published__' => false})
+          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{mod["id"]}/items",
                               {
-                                  'module_item[title]' => '[ sample page: Week 1 Overview ]',
-                                  'module_item[type]' => 'Page',
-                                  'module_item[page_url]' => week1['url'],
-                                  'module_item[position]' => 2,
-                                  'module[published]' => false
+                                  'module_item__title__' => '[ sample page: Week 1 Overview ]',
+                                  'module_item__type__' => 'Page',
+                                  'module_item__page_url__' => week1['url'],
+                                  'module_item__position__' => 2,
+                                  'module__published__' => false
                               })
 
         end
@@ -219,7 +219,7 @@ class Course
         #  puts c_course
         #  puts first_mod
         #  puts hostname
-        #  c_mod = canvas.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
+        #  c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
         #                      {
         #                          'module_item[title]' => mod_xml['link'],
         #                          'module_item[type]' => 'ExternalUrl',
@@ -233,7 +233,7 @@ class Course
         #end
 
 
-        #canvas.post "/api/v1/courses/#{c_course["id"]}/external_tools",
+        #client.post "/api/v1/courses/#{c_course["id"]}/external_tools",
         #            {
         #                'course_navigation[url]' => mod["items_url"],
         #                'name' => mod_xml["link"],
@@ -250,7 +250,7 @@ class Course
         #    '<blti:description>                                                                                             '<<
         #    "This adds a link to the #{mod_xml["link"]}                                                                     "<<
         #    '</blti:description>                                                                                            '<<
-        #    '<blti:extensions platform="canvas.instructure.com">                                                            '<<
+        #    '<blti:extensions platform="client.instructure.com">                                                            '<<
         #    '<lticm:property name="tool_id">course_navigation</lticm:property>                                              '<<
         #    '<lticm:property name="privacy_level">anonymous</lticm:property>                                                '<<
         #    '<lticm:options name="course_navigation">                                                                       '<<
@@ -261,7 +261,7 @@ class Course
         #    '</lticm:options>                                                                                               '<<
         #    '</blti:extensions>                                                                                             '
 
-        #    canvas.post "/api/v1/courses/#{c_course["id"]}/external_tools",
+        #    client.post "/api/v1/courses/#{c_course["id"]}/external_tools",
         #    {
         #        'config_type' => "by_xml",
         #        'config_xml' => xml}
@@ -272,21 +272,21 @@ class Course
     end
   end
 
-  def create_frontpage(canvas, c_course, canvas_frontpage)
+  def create_frontpage(client, c_course, canvas_frontpage)
     puts '#create and set frontpage'
     begin
-      canvas_frontpage = canvas_frontpage.gsub '<<course_id>>' , c_course['id'].to_s
-      syllabus = canvas.put("/api/v1/courses/#{c_course["id"]}/front_page",
-                            {'wiki_page[title]' => 'New Front Page',
-                             'wiki_page[body]' => canvas_frontpage,
-                             'wiki_page[editing_roles]' => 'teachers',
-                             'wiki_page[published]' => true,
-                             'wiki_page[front_page]' => true,
-                             'wiki_page[hide_from_students]' => false})
+      canvas_frontpage = canvas_frontpage.gsub '<<course_id>>' , c_course.id.to_s
+      syllabus = canvas.put("/api/v1/courses/#{c_course.id}/front_page",
+                            {'wiki_page__title__' => 'New Front Page',
+                             'wiki_page__body__' => canvas_frontpage,
+                             'wiki_page__editing_roles__' => 'teachers',
+                             'wiki_page__published__' => true,
+                             'wiki_page__front_page__' => true,
+                             'wiki_page__hide_from_students__' => false})
 
-      canvas.put("/api/v1/courses/#{c_course["id"]}",
+      client.put("/api/v1/courses/#{c_course.id}",
                  {
-                     'course[default_view]' => 'wiki'
+                     'course__default_view__' => 'wiki'
                  }
       )
     rescue Canvas::ApiError => error
@@ -295,22 +295,22 @@ class Course
 
   end
 
-  def setup_tabs(canvas, c_course)
+  def setup_tabs(client, c_course)
     puts "reorder nav tabs and hide some of them"
     begin
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: false, position: 6})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
-      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: false, position: 6})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
+      client.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
     rescue Canvas::ApiError => error
       puts error
     end

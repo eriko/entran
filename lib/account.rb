@@ -17,7 +17,7 @@ class Account
       account = Account.new section_xml.xpath("./@account_id").text, section_xml.xpath("./@name").text
       @accounts[account.account_id] = account
       begin
-        c_account = client.list_accounts(id: "sis_account_id:#{account.account_id}")
+        c_account = client.get_single_account(id: "sis_account_id:#{account.account_id}")
         #c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
         binding.pry
         account.id = c_account[0].id

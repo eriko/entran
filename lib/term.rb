@@ -113,21 +113,6 @@ class Term
   end
 
 
-  def fall?()
-    self.season.eql? 'Fall'
-  end
-
-  def winter?()
-    self.season.eql? 'Winter'
-  end
-
-  def spring?()
-    self.season.eql? 'Spring'
-  end
-
-  def summer?()
-    self.season.eql? 'Summer'
-  end
 
 
 end

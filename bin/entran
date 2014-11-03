@@ -147,20 +147,19 @@ command :canvas do |c|
           puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
           puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
           binding.pry
-          c_course = client.create_new_course(@accounts[course.account_id].account_id,
-                                 {
-                                     'account_id' => @accounts[course.account_id].id,
-                                     'course[sis_course_id]' => course.course_id,
-                                     'course[name]' => course.long_name,
-                                     'course[course_code]' => course.short_name,
-                                     'course[start_at]' => course.first_term.start_date.iso8601,
-                                     'course[allow_student_forum_attachments]' => true,
-                                     'course[term_id]' => course.real_term.c_id,
-                                     'course[syllabus_body]' => @settings.canvas_syllabus,
+          c_course = client.create_new_course("sis_account_id:#{course.account_id}",
+                                              {
+                                                  'course__sis_course_id__' => course.course_id,
+                                                  'course__name__' => course.long_name,
+                                                  'course__course_code__' => course.short_name,
+                                                  'course__start_at__' => course.first_term.start_date.iso8601,
+                                                  'course__allow_student_forum_attachments__' => true,
+                                                  'course__term_id__' => course.real_term.c_id,
+                                                  'course__syllabus_body__' => @settings.canvas_syllabus,
 
-                                 }
+                                              }
           )
-          #c_course = client.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
+          #c_course = canvas.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
           #                       {
           #                           'account_id' => @accounts[course.account_id].id,
           #                           'course[sis_course_id]' => course.course_id,
@@ -240,15 +239,15 @@ command :canvas do |c|
         puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
         #binding.pry
         begin
-          c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
+          c_course = client.get_single_course_courses("sis_course_id:#{self.course_id}")
           puts c_course
-          if c_course["id"] && course.created == true && course.setup == false
+          if c_course.id && course.created == true && course.setup == false
             puts "ensu------------>setup frontpage = #{course.setup_frontpage}"
             unless course.setup_frontpage
               open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                 f.each_line { |line| p line }
               }
-              course.create_frontpage(canvas, c_course, @settings.canvas_homepage)
+              course.create_frontpage(client, c_course, @settings.canvas_homepage)
               course.setup_frontpage = true
             end
             #create modules
