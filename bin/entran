@@ -389,8 +389,13 @@ command :canvas_conclude do |c|
                     #section = course.sections[c_section['sis_section_id']]
                     exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
                     unless exists
-                      puts "cc----->/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"
-                      del = canvas.delete(("/api/v1/courses/sis_course_id:#{course.course_id}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                      puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
+                      begin
+                      del = canvas.delete(("/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                      rescue => error
+                        puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                        puts "++++++++++++>#{c_enrollment}"
+                        end
                       puts "cc----->Delete user: #{user} resulted in #{del}"
                     end
                     more = c_section_enrollment.more?
