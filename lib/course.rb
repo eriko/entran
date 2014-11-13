@@ -58,7 +58,7 @@ class Course
 
   end
 
-  def Course.import_xml(lms_courses_xml, terms, catalogs, kind, all_sections, users)
+  def Course.import_xml(lms_courses_xml, kind, all_sections, users,terms)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
@@ -105,8 +105,8 @@ class Course
           #puts "the course shortname  is #{@course.short_name}"
           @course.curricular_year = offering.xpath("./curricular_year[text()]").text.to_i
 
-          real_term= website.xpath("./real_term/@term_code").to_s.to_i
-          @course.real_term = terms[real_term]
+          @course.real_term= website.xpath("./real_term/@term_code").to_s.to_i
+          #@course.real_term = terms[real_term]
           #puts "the real_term is #{ @course.real_term}"
 
           #this block was used to get catalog data for the description to be used by moodle

@@ -1,6 +1,6 @@
 class Term
   attr_accessor :term_id, :name, :status, :start_date, :end_date,
-                :season, :acad_year, :prime, :prime_year ,:c_id
+                :season, :acad_year, :prime, :prime_year
 
   def <=>(other)
     self.term_id <=> other.term_id
@@ -12,24 +12,24 @@ class Term
   end
 
 
-  def Term.import_xml(terms_xml, curricular_year, canvas , client)
-    c_terms = Hash.new
-    begin
-      raw_terms = canvas.get("/api/v1/accounts/1/terms",{'workflow_state'=>'all','per_page'=>50})
-      #binding.pry
-      #client_raw_terms = client.list_enrollment_terms(1, {workflow_state: 'all'})
-      #binding.pry
-      puts "raw_terms.class is #{raw_terms.class}"
-      raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
-      #binding.pry
-        #while raw_terms.more?
-        #  list.next_page!
-        #  raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
-        #end
-
-    rescue => error
-      puts error
-    end
+  def Term.import_xml(terms_xml, curricular_year)
+    #c_terms = Hash.new
+    #begin
+    #  raw_terms = canvas.get("/api/v1/accounts/1/terms",{'workflow_state'=>'all','per_page'=>50})
+    #  #binding.pry
+    #  #client_raw_terms = client.list_enrollment_terms(1, {workflow_state: 'all'})
+    #  #binding.pry
+    #  puts "raw_terms.class is #{raw_terms.class}"
+    #  raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
+    #  #binding.pry
+    #    #while raw_terms.more?
+    #    #  list.next_page!
+    #    #  raw_terms['enrollment_terms'].each { |t| c_terms[t['sis_term_id'].to_i] = t }
+    #    #end
+    #
+    #rescue => error
+    #  puts error
+    #end
     @terms = Hash.new
     #puts curricular_year
     terms_xml.xpath("//row").each do |term_xml|
@@ -47,16 +47,16 @@ class Term
         term.prime_year = term_xml.xpath("./prime_year").text.to_i
         term.start_date = Time.parse term_xml.xpath("./start_date").text
         term.end_date = Time.parse term_xml.xpath("./end_date").text
-        if c_terms[term.term_id] && c_terms[term.term_id]['id']
-          #binding.pry
-          #puts "adding the canvas term id"
-          term.c_id = c_terms[term.term_id]['id']
-        else
-          #binding.pry
-          #puts "could not find c_term"
-          #puts "c_terms[term.term_id] c_terms[#{term.term_id}] = #{c_terms[term.term_id]}"
-          term.c_id = "not found"
-        end
+        #if c_terms[term.term_id] && c_terms[term.term_id]['id']
+        #  #binding.pry
+        #  #puts "adding the canvas term id"
+        #  term.c_id = c_terms[term.term_id]['id']
+        #else
+        #  #binding.pry
+        #  #puts "could not find c_term"
+        #  #puts "c_terms[term.term_id] c_terms[#{term.term_id}] = #{c_terms[term.term_id]}"
+        #  term.c_id = "not found"
+        #end
         #puts term.c_id
         @terms[term.term_id] = term
         #puts term
