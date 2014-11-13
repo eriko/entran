@@ -27,7 +27,6 @@ class Account
 
       end
     end
-    binding.pry
     @accounts
   end
 

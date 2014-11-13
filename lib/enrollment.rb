@@ -89,7 +89,7 @@ class Enrollment
         end
       else
         enrollment_xml.xpath("./offering/faculty/person").each do |person|
-          user, users = User.import_user_xml(person, users)
+          user, users = Person.import_user_xml(person, users)
           if user
             enrol = Enrollment.new(user, :faculty, faculty_section, 'active')
             enrollments << enrol
@@ -97,7 +97,7 @@ class Enrollment
           end
         end
         enrollment_xml.xpath("./offering/registered/person").each do |person|
-          user, users = User.import_user_xml(person, users)
+          user, users = Person.import_user_xml(person, users)
           student_sections.each do |section|
             enrol = Enrollment.new(user, :student, section, 'active')
             enrollments << enrol
@@ -107,7 +107,7 @@ class Enrollment
         #only do this when waitlist is active
         if course.waitlist
           enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
-            user, users = User.import_user_xml(person, users)
+            user, users = Person.import_user_xml(person, users)
             student_sections.each do |section|
               enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol
@@ -118,7 +118,7 @@ class Enrollment
         #only do this when waitlist is active
         if course.override
           enrollment_xml.xpath("./offering/overrides/person").each do |person|
-            user, users = User.import_user_xml(person, users)
+            user, users = Person.import_user_xml(person, users)
             student_sections.each do |section|
               enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol

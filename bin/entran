@@ -33,369 +33,366 @@ module Net
   end
 end
 
+module Wrapper
+  include GLI::App
 
-puts Time.now
-include GLI::App
-program_desc 'Translates enrollment data into various formats and feeds it to target systems'
+  extend self
+  puts Time.now
+  include GLI::App
+  program_desc 'Translates enrollment data into various formats and feeds it to target systems'
 
-config_file '.entran.rc'
+  config_file '.entran.rc'
 
-puts config_file '.entran.rc'
+  puts config_file '.entran.rc'
 
-version Entran::VERSION
+  version Entran::VERSION
 
-desc 'debug disables any changes to edge systems'
-switch [:d, :debug]
-
-
-desc 'all users from ims file and not limited to request courses'
-switch [:f, :full]
-
-flag [:h, :hostname]
-flag [:t, :token]
-flag [:p, :presence]
-flag [:k, :presence_key]
-flag [:i, :ims_key]
-flag [:c, :canvas_key]
-flag [:b, :banner_host]
-flag [:y, :year]
-
-desc 'Enrollment work for Canvas'
-command :canvas do |c|
+  desc 'debug disables any changes to edge systems'
+  switch [:d, :debug]
 
 
-  c.action do |global_options, options, args|
+  desc 'all users from ims file and not limited to request courses'
+  switch [:f, :full]
 
-    # Your command logic here
+  flag [:h, :hostname]
+  flag [:t, :token]
+  flag [:p, :presence]
+  flag [:k, :presence_key]
+  flag [:i, :ims_key]
+  flag [:c, :canvas_key]
+  flag [:b, :banner_host]
+  flag [:y, :year]
 
-    # If you have any errors, just raise them
-    # raise "that command made no sense"
-    puts global_options
-
-
-    token = global_options[:t]
-    hostname = global_options[:h]
-    puts hostname
-    client = Pandarus::Client.new(
-        prefix: "https://#{hostname}/api",
-        token: token)
-
-    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
-
-    files = Hash.new
-    puts "----------------->loading feed files"
-    load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
-
-    @users = Hash.new
-    puts "----------------->importing faculty"
-    files[:offerings_xml].xpath("//faculty").each { |fac| User.import_faculty_xml(fac, @users) }
-    puts "----------------->total faculty: #{@users.count}"
-
-    puts "----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i ,canvas,client
-    #puts "----------------->importing users"
-    #@users = Hash.new
-
-    @enrollments_canvas = Array.new
-
-    puts "----------------->extract settings from lms file"
-    @settings = Settings.new(@lms_courses_xml)
-
-    puts "----------------->importing sections"
-    @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
-    @sections_csv = Section.sections_canvas_csv(@sections)
-    puts "----------------->imported sections "
-
-    puts "----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, @catalogs, "CanvasCourse", @sections, @users
-
-    puts "----------------->extract settings from lms file"
-    @settings = Settings.new(files[:lms_courses])
-
-    #binding.pry
-    puts "----------------->importing accounts"
-    @accounts = Account.import_xml(files[:lms_courses], canvas,client)
-    puts @accounts
-    @accounts_csv = Account.accounts_canvas_csv(@accounts)
-    puts @accounts_csv
-    #puts @courses
-    #get people and enrollments
+  desc 'Enrollment work for Canvas'
+  command :canvas do |c|
 
 
-    puts "ene----->creating enrollments"
-    @courses.values.each do |course|
-      puts "ene---------->working on: #{course.long_name}"
-      #course_created?(course.course_id,global_options)
-      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-      puts "ene-------------------->course enrollments count: #{course.enrollments.count}"
-    end
+    c.action do |global_options, options, args|
 
-    unless global_options[:f]
-      puts "enu----------------->limiting users to requested courses"
-      @users_csv = User.users_limited_canvas_csv(@enrollments_canvas)
-    else
-      puts "enu----------------->using all users from enrollment source"
-      @users_csv = User.users_canvas_csv(@users)
-    end
+      # Your command logic here
 
-    @courses.values.each do |course|
-      course.status_check(global_options,client)
-      puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
-      begin
-        unless course.created
-          puts "enc----------------->Creating course that does not exist"
-          puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
-          puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
-          binding.pry
-          c_course = client.create_new_course("sis_account_id:#{course.account_id}",
-                                              {
-                                                  'course__sis_course_id__' => course.course_id,
-                                                  'course__name__' => course.long_name,
-                                                  'course__course_code__' => course.short_name,
-                                                  'course__start_at__' => course.first_term.start_date.iso8601,
-                                                  'course__allow_student_forum_attachments__' => true,
-                                                  'course__term_id__' => course.real_term.c_id,
-                                                  'course__syllabus_body__' => @settings.canvas_syllabus,
-
-                                              }
-          )
-          #c_course = canvas.post("/api/v1/accounts/#{@accounts[course.account_id].id}/courses",
-          #                       {
-          #                           'account_id' => @accounts[course.account_id].id,
-          #                           'course[sis_course_id]' => course.course_id,
-          #                           'course[name]' => course.long_name,
-          #                           'course[course_code]' => course.short_name,
-          #                           'course[start_at]' => course.first_term.start_date.iso8601,
-          #                           'course[allow_student_forum_attachments]' => true,
-          #                           'course[term_id]' => course.real_term.c_id,
-          #                           'course[syllabus_body]' => @settings.canvas_syllabus,
-          #
-          #                       }
-          #)
-          puts "enc----------------->#{c_course}"
-          #mark course created in presence
-          open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
-            f.each_line { |line| p "enc----------->#{line}" }
-          }
-          course.created = true
-        end
-      rescue Canvas::ApiError => error
-        if error.to_s.include?('is already in use')
-          puts "enc----------------->The course already existed but was deleted without changing the sis id #{error}"
-          open("http://#{global_options[:p]}/feeds/canvas_blocked/#{global_options[:k]}/#{course.website_id}") { |f|
-            f.each_line { |line| p "enc----------->#{line}" }
-          }
-        end
-      end
-    end
-
-    @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
-    puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
+      # If you have any errors, just raise them
+      # raise "that command made no sense"
+      puts global_options
 
 
-    puts "ene-------------->creating SIS zip file and uploading it"
-    filename = "sis_#{Time.now.to_i.to_s}"
-    fullpath = "/tmp/#{filename}.zip"
-    puts fullpath
-    puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-    Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-      ar.add_buffer('users.csv', @users_csv);
-      ar.add_buffer('terms.csv', files[:terms_csv].string);
-      ar.add_buffer('sections.csv', @sections_csv);
-      ar.add_buffer('accounts.csv', @accounts_csv);
-      #ar.add_buffer('courses.csv', @canvases_csv);
-      ar.add_buffer('enrollments.csv', @enrollments_canvas_csv);
-    end
+      token = global_options[:t]
+      hostname = global_options[:h]
+      puts hostname
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
 
-    token = global_options[:t]
-    hostname = global_options[:h]
-    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-    puts url
-    req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-    req.add_field("Authorization", "Bearer #{token}")
-    n = Net::HTTP.new(url.host, url.port)
-    n.use_ssl = true
-    if global_options[:d]
-      puts "ene-------------->debug mode so not talking to canvas host"
-    else
-      res = n.start do |http|
-        http.request(req)
-      end
-      puts res
-    end
-    unless global_options[:d]
-      File.delete(fullpath)
-    end
+      canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
-    puts "ensu------------>Processing courses for setup"
-    @courses.values.each do |course|
-      #the api can error out so we create each area separetely and mark each one
-      #as worked on before starting to do the work so that at worst there is
-      #something incomplete and not repeatly pounded on. If everything is marked assert_equal
-      #as setup_* = true then mark the whole thing as setup.
+      files = Hash.new
+      puts "----------------->loading feed files"
+      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
+
+      @users = Hash.new
+      puts "----------------->importing faculty"
+      files[:offerings_xml].xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
+      puts "----------------->total faculty: #{@users.count}"
+
+      puts "----------------->importing terms"
+      @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+      #puts "----------------->importing users"
+      #@users = Hash.new
+
+      @enrollments_canvas = Array.new
+
+      puts "----------------->extract settings from lms file"
+      @settings = Settings.new(@lms_courses_xml)
+
+      puts "----------------->importing sections"
+      @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
+      @sections_csv = Section.sections_canvas_csv(@sections)
+      puts "----------------->imported sections "
+
+      puts "----------------->importing courses"
+      @courses = Course.import_xml files[:lms_courses], "CanvasCourse", @sections, @users ,@terms
+
+      puts "----------------->extract settings from lms file"
+      @settings = Settings.new(files[:lms_courses])
+
       #binding.pry
-      unless course.setup
-        puts "ensu------------>/api/v1/courses/sis_course_id:#{course.course_id}"
-        puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
-        #binding.pry
+      puts "----------------->importing accounts"
+      @accounts = Account.import_xml(files[:lms_courses], canvas, client)
+      puts @accounts
+      @accounts_csv = Account.accounts_canvas_csv(@accounts)
+      puts @accounts_csv
+      #puts @courses
+      #get people and enrollments
+
+
+      puts "ene----->creating enrollments"
+      @courses.values.each do |course|
+        puts "ene---------->working on: #{course.long_name}"
+        #course_created?(course.course_id,global_options)
+        @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
+        puts "ene-------------------->course enrollments count: #{course.enrollments.count}"
+      end
+
+      unless global_options[:f]
+        puts "enu----------------->limiting users to requested courses"
+        @users_csv = Person.users_limited_canvas_csv(@enrollments_canvas)
+      else
+        puts "enu----------------->using all users from enrollment source"
+        @users_csv = Person.users_canvas_csv(@users)
+      end
+
+      @courses.values.each do |course|
+        course.status_check(global_options, client)
+        puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
         begin
-          c_course = client.get_single_course_courses("sis_course_id:#{self.course_id}")
-          puts c_course
-          if c_course.id && course.created == true && course.setup == false
-            puts "ensu------------>setup frontpage = #{course.setup_frontpage}"
-            unless course.setup_frontpage
-              open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
-                f.each_line { |line| p line }
-              }
-              course.create_frontpage(client, c_course, @settings.canvas_homepage)
-              course.setup_frontpage = true
-            end
-            #create modules
-            puts "ensu------------>course.setup_modules = #{course.setup_modules}"
-            unless course.setup_modules
-              open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
-                f.each_line { |line| p line }
-              }
-              course.create_modules(canvas, c_course, @settings)
-              course.setup_modules = true
-            end
-            #reorder nav tabs and hide some of them
-            puts "ensu------------>setup setup_nav = #{course.setup_nav}"
-            unless course.setup_nav
-              open("http://#{global_options[:p]}/feeds/canvas_setup_nav/#{global_options[:k]}/#{course.website_id}") { |f|
-                f.each_line { |line| p line }
-              }
-              course.setup_tabs(canvas, c_course)
-              course.setup_nav = true
-            end
-            if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
-              #but presence does not know about this yet so we will mark it so in presence
-              open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
-                f.each_line { |line| p line }
-              }
-              course.setup = true
-            end
+          unless course.created
+            puts "enc----------------->Creating course that does not exist"
+            puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
+            puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
+            binding.pry
+            c_course = client.create_new_course("sis_account_id:#{course.account_id}",
+                                                {
+                                                    'course__sis_course_id__' => course.course_id,
+                                                    'course__name__' => course.long_name,
+                                                    'course__course_code__' => course.short_name,
+                                                    'course__start_at__' => course.first_term.start_date.iso8601,
+                                                    'course__allow_student_forum_attachments__' => true,
+                                                    'course__term_id__' => course.real_term.c_id,
+                                                    'course__syllabus_body__' => @settings.canvas_syllabus,
+
+                                                }
+            )
+            puts "enc----------------->#{c_course}"
+            #mark course created in presence
+            open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
+              f.each_line { |line| p "enc----------->#{line}" }
+            }
+            course.created = true
           end
         rescue Canvas::ApiError => error
-          puts error
+          if error.to_s.include?('is already in use')
+            puts "enc----------------->The course already existed but was deleted without changing the sis id #{error}"
+            open("http://#{global_options[:p]}/feeds/canvas_blocked/#{global_options[:k]}/#{course.website_id}") { |f|
+              f.each_line { |line| p "enc----------->#{line}" }
+            }
+          end
         end
       end
+
+      @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
+      puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
+
+
+      puts "ene-------------->creating SIS zip file and uploading it"
+      filename = "sis_#{Time.now.to_i.to_s}"
+      fullpath = "/tmp/#{filename}.zip"
+      puts fullpath
+      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
+      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
+        ar.add_buffer('users.csv', @users_csv);
+        ar.add_buffer('terms.csv', files[:terms_csv].string);
+        ar.add_buffer('sections.csv', @sections_csv);
+        ar.add_buffer('accounts.csv', @accounts_csv);
+        #ar.add_buffer('courses.csv', @canvases_csv);
+        ar.add_buffer('enrollments.csv', @enrollments_canvas_csv);
+      end
+
+      token = global_options[:t]
+      hostname = global_options[:h]
+      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
+      puts url
+      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
+      req.add_field("Authorization", "Bearer #{token}")
+      n = Net::HTTP.new(url.host, url.port)
+      n.use_ssl = true
+      if global_options[:d]
+        puts "ene-------------->debug mode so not talking to canvas host"
+      else
+        res = n.start do |http|
+          http.request(req)
+        end
+        puts res
+      end
+      unless global_options[:d]
+        File.delete(fullpath)
+      end
+
+      puts "ensu------------>Processing courses for setup"
+      @courses.values.each do |course|
+        #the api can error out so we create each area separetely and mark each one
+        #as worked on before starting to do the work so that at worst there is
+        #something incomplete and not repeatly pounded on. If everything is marked assert_equal
+        #as setup_* = true then mark the whole thing as setup.
+        #binding.pry
+        unless course.setup
+          puts "ensu------------>/api/v1/courses/sis_course_id:#{course.course_id}"
+          puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
+          #binding.pry
+          begin
+            c_course = client.get_single_course_courses("sis_course_id:#{self.course_id}")
+            puts c_course
+            if c_course.id && course.created == true && course.setup == false
+              puts "ensu------------>setup frontpage = #{course.setup_frontpage}"
+              unless course.setup_frontpage
+                open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
+                  f.each_line { |line| p line }
+                }
+                course.create_frontpage(client, c_course, @settings.canvas_homepage)
+                course.setup_frontpage = true
+              end
+              #create modules
+              puts "ensu------------>course.setup_modules = #{course.setup_modules}"
+              unless course.setup_modules
+                open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
+                  f.each_line { |line| p line }
+                }
+                course.create_modules(canvas, c_course, @settings)
+                course.setup_modules = true
+              end
+              #reorder nav tabs and hide some of them
+              puts "ensu------------>setup setup_nav = #{course.setup_nav}"
+              unless course.setup_nav
+                open("http://#{global_options[:p]}/feeds/canvas_setup_nav/#{global_options[:k]}/#{course.website_id}") { |f|
+                  f.each_line { |line| p line }
+                }
+                course.setup_tabs(canvas, c_course)
+                course.setup_nav = true
+              end
+              if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
+                #but presence does not know about this yet so we will mark it so in presence
+                open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
+                  f.each_line { |line| p line }
+                }
+                course.setup = true
+              end
+            end
+          rescue Canvas::ApiError => error
+            puts error
+          end
+        end
+      end
+
+
+      puts "canvas command ran"
     end
-
-
-    puts "canvas command ran"
   end
-end
 
 
-desc 'Enrollment conclude work for Canvas'
-command :canvas_conclude do |c|
+  desc 'Enrollment conclude work for Canvas'
+  command :canvas_conclude do |c|
 
 
-  c.action do |global_options, options, args|
+    c.action do |global_options, options, args|
 
-    # Your command logic here
+      # Your command logic here
 
-    # If you have any errors, just raise them
-    # raise "that command made no sense"
-    puts global_options
-
-
-    token = global_options[:t]
-    hostname = global_options[:h]
-    puts hostname
-    canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
-
-    files = Hash.new
-    puts "cc----------------->loading feed files"
-    load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
-
-    @users = Hash.new
-    puts "cc----------------->importing faculty"
-    files[:offerings_xml].xpath("//faculty").each { |fac| User.import_faculty_xml(fac, @users) }
-    puts "cc----------------->total faculty: #{@users.count}"
-
-    puts "cc----------------->importing terms"
-    @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i, canvas
-    #puts "----------------->importing users"
-    #@users = Hash.new
-
-    @enrollments_canvas = Array.new
-
-    puts "cc----------------->extract settings from lms file"
-    @settings = Settings.new(@lms_courses_xml)
-
-    puts "cc----------------->importing sections"
-    @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
-    @sections_csv = Section.sections_canvas_csv(@sections)
-    puts "cc----------------->imported sections "
-
-    puts "cc----------------->importing courses"
-    @courses = Course.import_xml files[:lms_courses], @terms, @catalogs, "CanvasCourse", @sections, @users
-
-    puts "cc----------------->extract settings from lms file"
-    @settings = Settings.new(files[:lms_courses])
-
-    puts "cc----------------->importing accounts"
-    @accounts = Account.import_xml(files[:lms_courses], canvas)
-    @accounts_csv = Account.accounts_canvas_csv(@accounts)
-    #puts @courses
-    #get people and enrollments
+      # If you have any errors, just raise them
+      # raise "that command made no sense"
+      puts global_options
 
 
-    puts "cc----->creating enrollments"
-    @courses.values.each do |course|
-      puts "---------->working on: #{course.long_name}"
-      #course_created?(course.course_id,global_options)
-      @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-      puts "cc-------------------->course enrollments count: #{course.enrollments.count}"
-    end
+      token = global_options[:t]
+      hostname = global_options[:h]
+      puts hostname
 
-    unless global_options[:f]
-      puts "cc----------------->limiting users to requested courses"
-      @users_csv = User.users_limited_canvas_csv(@enrollments_canvas)
-    else
-      puts "cc----------------->using all users from enrollment source"
-      @users_csv = User.users_canvas_csv(@users)
-    end
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
+
+      canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
+
+      files = Hash.new
+      puts "cc----------------->loading feed files"
+      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
+
+      @users = Hash.new
+      puts "cc----------------->importing faculty"
+      files[:offerings_xml].xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
+      puts "cc----------------->total faculty: #{@users.count}"
+
+      puts "cc----------------->importing terms"
+      @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i, canvas, client
+      #puts "----------------->importing users"
+      #@users = Hash.new
+
+      @enrollments_canvas = Array.new
+
+      puts "cc----------------->extract settings from lms file"
+      @settings = Settings.new(@lms_courses_xml)
+
+      puts "cc----------------->importing sections"
+      @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
+      @sections_csv = Section.sections_canvas_csv(@sections)
+      puts "cc----------------->imported sections "
+
+      puts "cc----------------->importing courses"
+      @courses = Course.import_xml files[:lms_courses], @terms, "CanvasCourse", @sections, @users
+
+      puts "cc----------------->extract settings from lms file"
+      @settings = Settings.new(files[:lms_courses])
+
+      puts "cc----------------->importing accounts"
+      @accounts = Account.import_xml(files[:lms_courses], canvas, client)
+      @accounts_csv = Account.accounts_canvas_csv(@accounts)
+      #puts @courses
+      #get people and enrollments
 
 
-    @courses.values.each do |course|
-      course.status_check(global_options)
-      if course.created
-        begin
-          puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
-          c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
-          puts "cc----->#{c_course}"
-          #if c_course["id"]
-          #  c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
+      puts "cc----->creating enrollments"
+      @courses.values.each do |course|
+        puts "---------->working on: #{course.long_name}"
+        #course_created?(course.course_id,global_options)
+        @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
+        puts "cc-------------------->course enrollments count: #{course.enrollments.count}"
+      end
+
+
+      @courses.values.each do |course|
+        c_course = course.status_check(global_options, client)
+        if course.created
+          begin
+            puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+            #c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
+            puts "cc----->#{c_course}"
+            #if c_course["id"]
+            #  c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
             #puts "cc----->#{c_sections}"
             #get the one or two sections that are for current enrollment term and just process those two
             #binding.pry
-            current_sections = course.sections.values.find_all{|section|section.current && section.control.eql?('full')}
+            current_sections = course.sections.values.find_all { |section| section.current && section.control.eql?('full') }
             puts "cc----->current sections #{current_sections.length}"
             #current_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}" }
             #current_cl_section = c_sections.detect { |c_section| c_section['sis_section_id'].eql? "#{course.banner_offering_id}-#{course.enrollment_term}-cl" }
             #c_sections = [current_section, current_cl_section]
             current_sections.compact.each do |section|
-              c_section = canvas.get("/api/v1/sections/sis_section_id:#{section.section_id}")
-              c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments?state=active")
-              #puts "cc----->#{c_section_enrollment}"
+              c_section = client.get_section_information_sections("sis_section_id:#{section.section_id}")
+              puts "cc----->current c_section #{c_section}"
+              #binding.pry
+              #c_section = canvas.get("/api/v1/sections/sis_section_id:#{section.section_id}")
+              c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
+                                                                                     state: 'active'})
+              binding.pry
+              #c_section_enrollment = canvas.get("/api/v1/sections/#{c_section["id"]}/enrollments?state=active")
+              puts "cc----->#{c_section_enrollment}"
               if c_section_enrollment.length > 0
                 more = true
                 while more
                   c_section_enrollment.each do |c_enrollment|
-                    user = @users[c_enrollment['user']['sis_user_id']]
+                    #binding.pry
+                    user = @users[c_enrollment.user.sis_user_id]
                     #section = course.sections[c_section['sis_section_id']]
                     exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
                     unless exists
                       puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
                       begin
-                      del = canvas.delete(("/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                        binding.pry
+                        del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
+                          #del = canvas.delete(("/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"))
+                          #conclude_enrollment(course_id,id,opts={})
                       rescue => error
                         puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
                         puts "++++++++++++>#{c_enrollment}"
-                        end
+                      end
                       puts "cc----->Delete user: #{user} resulted in #{del}"
                     end
                     more = c_section_enrollment.more?
@@ -405,179 +402,180 @@ command :canvas_conclude do |c|
                     end
                   end
                 end
-             # end
+                # end
+              end
             end
+          rescue => error
+            puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
           end
-        rescue => error
-          puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
         end
       end
+      puts "canvas command ran"
     end
-    puts "canvas command ran"
-  end
-end
-
-
-desc 'Add all faculty users to canvas'
-command :canvas_faculty_course do |c|
-  c.action do |global_options, options, args|
-
-    # Your command logic here
-
-    # If you have any errors, just raise them
-    # raise "that command made no sense"
-    puts global_options
-
-    token = global_options[:t]
-    hostname = global_options[:h]
-    url = "http://#{global_options[:b]}/banner/public/offerings/export"
-    puts url
-    @offerings_xml = Nokogiri::XML(open(url))
-
-    url = "http://#{global_options[:p]}/feeds/canvas/lms_courses.xml"
-    puts url
-    @lms_courses_xml = Nokogiri::XML(open(url))
-
-
-    @users = Hash.new
-    puts "----------------->importing faculty"
-    @offerings_xml.xpath("//faculty").each { |fac| User.import_faculty_xml(fac, @users) }
-    puts "----------------->total faculty: #{@users.count}"
-
-    puts "----------------->extract settings from lms file"
-    @settings = Settings.new(@lms_courses_xml)
-    @users_csv = User.users_canvas_csv(@users)
-
-    @enrollments_csv = CSV.generate do |csv|
-      csv << ["course_id", "user_id", "role", "status", "associated_user_id"]
-      @users.each do |user_id, user|
-        csv << [@settings.canvas_training_id, user_id, 'Student', 'active', nil]
-      end
-    end
-
-
-    puts "creating SIS zip file"
-    filename = "sis_#{Time.now.to_i.to_s}"
-    fullpath = "/tmp/#{filename}.zip"
-    puts fullpath
-    puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-    Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-      ar.add_buffer('users.csv', @users_csv);
-      ar.add_buffer('enrollments.csv', @enrollments_csv);
-    end
-
-    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-    puts url
-    req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-    req.add_field("Authorization", "Bearer #{token}")
-    n = Net::HTTP.new(url.host, url.port)
-    n.use_ssl = true
-    if global_options[:d]
-      puts "----------------->debug mode so not talking to canvas host"
-    else
-      res = n.start do |http|
-        http.request(req)
-      end
-      puts res
-    end
-
-
-    unless global_options[:d]
-      File.delete(fullpath)
-    end
-
   end
 
 
-  puts "canvas_faculty command ran"
+  desc 'Add all faculty users to canvas'
+  command :canvas_faculty_course do |c|
+    c.action do |global_options, options, args|
 
-end
+      # Your command logic here
 
-desc 'Add all students canvas'
-command :canvas_students do |c|
-  c.action do |global_options, options, args|
+      # If you have any errors, just raise them
+      # raise "that command made no sense"
+      puts global_options
 
-    # Your command logic here
+      token = global_options[:t]
+      hostname = global_options[:h]
+      url = "http://#{global_options[:b]}/banner/public/offerings/export"
+      puts url
+      @offerings_xml = Nokogiri::XML(open(url))
 
-    # If you have any errors, just raise them
-    # raise "that command made no sense"
-    puts global_options
-
-    token = global_options[:t]
-    hostname = global_options[:h]
-    url = "http://#{global_options[:b]}/banner/public/offerings/export"
-    puts url
-    @offerings_xml = Nokogiri::XML(open(url))
-
-    url = "http://#{global_options[:p]}/feeds/current_offerings.xml"
-    puts url
-    @current_offerings_xml = Nokogiri::XML(open(url))
+      url = "http://#{global_options[:p]}/feeds/canvas/lms_courses.xml"
+      puts url
+      @lms_courses_xml = Nokogiri::XML(open(url))
 
 
-    @users = Hash.new
-    puts "----------------->importing faculty"
-    @offerings_xml.xpath("//oars_offering").each { |offering| User.import_students_xml(offering, @users, global_options[:i], global_options[:b]) }
-    puts "----------------->total faculty: #{@users.count}"
+      @users = Hash.new
+      puts "----------------->importing faculty"
+      @offerings_xml.xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
+      puts "----------------->total faculty: #{@users.count}"
 
-    @users_csv = User.users_canvas_csv(@users)
+      puts "----------------->extract settings from lms file"
+      @settings = Settings.new(@lms_courses_xml)
+      @users_csv = Person.users_canvas_csv(@users)
 
-
-    puts "creating SIS zip file"
-    filename = "sis_#{Time.now.to_i.to_s}"
-    fullpath = "/tmp/#{filename}.zip"
-    puts fullpath
-    puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-    Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-      ar.add_buffer('users.csv', @users_csv);
-    end
-
-    url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-    puts url
-    req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-    req.add_field("Authorization", "Bearer #{token}")
-    n = Net::HTTP.new(url.host, url.port)
-    n.use_ssl = true
-    if global_options[:d]
-      puts "----------------->debug mode so not talking to canvas host"
-    else
-      res = n.start do |http|
-        http.request(req)
+      @enrollments_csv = CSV.generate do |csv|
+        csv << ["course_id", "user_id", "role", "status", "associated_user_id"]
+        @users.each do |user_id, user|
+          csv << [@settings.canvas_training_id, user_id, 'Student', 'active', nil]
+        end
       end
-      puts res
+
+
+      puts "creating SIS zip file"
+      filename = "sis_#{Time.now.to_i.to_s}"
+      fullpath = "/tmp/#{filename}.zip"
+      puts fullpath
+      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
+      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
+        ar.add_buffer('users.csv', @users_csv);
+        ar.add_buffer('enrollments.csv', @enrollments_csv);
+      end
+
+      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
+      puts url
+      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
+      req.add_field("Authorization", "Bearer #{token}")
+      n = Net::HTTP.new(url.host, url.port)
+      n.use_ssl = true
+      if global_options[:d]
+        puts "----------------->debug mode so not talking to canvas host"
+      else
+        res = n.start do |http|
+          http.request(req)
+        end
+        puts res
+      end
+
+
+      unless global_options[:d]
+        File.delete(fullpath)
+      end
+
     end
 
 
-    unless global_options[:d]
-      File.delete(fullpath)
+    puts "canvas_faculty command ran"
+
+  end
+
+  desc 'Add all students canvas'
+  command :canvas_students do |c|
+    c.action do |global_options, options, args|
+
+      # Your command logic here
+
+      # If you have any errors, just raise them
+      # raise "that command made no sense"
+      puts global_options
+
+      token = global_options[:t]
+      hostname = global_options[:h]
+      url = "http://#{global_options[:b]}/banner/public/offerings/export"
+      puts url
+      @offerings_xml = Nokogiri::XML(open(url))
+
+      url = "http://#{global_options[:p]}/feeds/current_offerings.xml"
+      puts url
+      @current_offerings_xml = Nokogiri::XML(open(url))
+
+
+      @users = Hash.new
+      puts "----------------->importing faculty"
+      @offerings_xml.xpath("//oars_offering").each { |offering| Person.import_students_xml(offering, @users, global_options[:i], global_options[:b]) }
+      puts "----------------->total faculty: #{@users.count}"
+
+      @users_csv = Person.users_canvas_csv(@users)
+
+
+      puts "creating SIS zip file"
+      filename = "sis_#{Time.now.to_i.to_s}"
+      fullpath = "/tmp/#{filename}.zip"
+      puts fullpath
+      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
+      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
+        ar.add_buffer('users.csv', @users_csv);
+      end
+
+      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
+      puts url
+      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
+      req.add_field("Authorization", "Bearer #{token}")
+      n = Net::HTTP.new(url.host, url.port)
+      n.use_ssl = true
+      if global_options[:d]
+        puts "----------------->debug mode so not talking to canvas host"
+      else
+        res = n.start do |http|
+          http.request(req)
+        end
+        puts res
+      end
+
+
+      unless global_options[:d]
+        File.delete(fullpath)
+      end
+
     end
+
+
+    puts "canvas_students command ran"
 
   end
 
 
-  puts "canvas_students command ran"
+  pre do |global, command, options, args|
+    # Pre logic here
+    # Return true to proceed; false to abort and not call the
+    # chosen command
+    # Use skips_pre before a command to skip this block
+    # on that command only
+    true
+  end
 
+  post do |global, command, options, args|
+    # Post logic here
+    # Use skips_post before a command to skip this
+    # block on that command only
+  end
+
+  on_error do |exception|
+    # Error logic here
+    # return false to skip default error handling
+    true
+  end
+
+  exit run(ARGV)
 end
-
-
-pre do |global, command, options, args|
-  # Pre logic here
-  # Return true to proceed; false to abort and not call the
-  # chosen command
-  # Use skips_pre before a command to skip this block
-  # on that command only
-  true
-end
-
-post do |global, command, options, args|
-  # Post logic here
-  # Use skips_post before a command to skip this
-  # block on that command only
-end
-
-on_error do |exception|
-  # Error logic here
-  # return false to skip default error handling
-  true
-end
-
-exit run(ARGV)

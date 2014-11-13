@@ -1,7 +1,7 @@
 require 'entran/version.rb'
 require 'boolean'
 require 'enrollment'
-require 'user'
+require 'person'
 require 'course'
 require 'section'
 require 'account'

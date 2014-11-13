@@ -167,7 +167,7 @@ class Course
                                   'wiki_page__body__' => settings.client_module_description,
                                   'wiki_page__editing_roles__' => 'teachers',
                                   'wiki_page__published__' => false})
-          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod__"id"]}/items",
+          c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
                               {
                                   'module_item__title__' => '[ sample page: Description ]',
                                   'module_item__type__' => 'Page',
@@ -214,57 +214,7 @@ class Course
                               })
 
         end
-        #if mod_xml["link"] && !mod_xml["first_quarter"].eql?('true') #add links to the first module for later quarters
-        #  puts "------------> external link to internal content of the next quarters modules"
-        #  puts c_course
-        #  puts first_mod
-        #  puts hostname
-        #  c_mod = client.post("/api/v1/courses/#{c_course["id"]}/modules/#{first_mod["id"]}/items",
-        #                      {
-        #                          'module_item[title]' => mod_xml['link'],
-        #                          'module_item[type]' => 'ExternalUrl',
-        #                          'module_item[external_url]' => "https://#{hostname}/courses/#{c_course["id"]}/modules#module_#{first_mod["id"]}",
-        #                          'module_item[new_tab]' => true,
-        #                          'module_item[position]' => first_mod["id"],
-        #                          'module[published]' => false
-        #                      }
-        #  )
-        #  puts c_mod
-        #end
 
-
-        #client.post "/api/v1/courses/#{c_course["id"]}/external_tools",
-        #            {
-        #                'course_navigation[url]' => mod["items_url"],
-        #                'name' => mod_xml["link"],
-        #                'course_navigation[text]' => mod_xml["link"],
-        #                'privacy_level' => 'anonymous',
-        #                'course_navigation[default]' => false,
-        #                'course_navigation[enabled]' => true,
-        #                'consumer_key' => 'asdfg',
-        #                'shared_secret' => 'lkjh'
-        #            }
-
-        #xml = "<cartridge_basiclti_link xmlns='http://www.imsglobal.org/xsd/imslticc_v1p0' xmlns:blti='http://www.imsglobal.org/xsd/imsbasiclti_v1p0' xmlns:lticm='http://www.imsglobal.org/xsd/imslticm_v1p0' xmlns:lticp='http://www.imsglobal.org/xsd/imslticp_v1p0' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.imsglobal.org/xsd/imslticc_v1p0 http://www.imsglobal.org/xsd/lti/ltiv1p0/imslticc_v1p0.xsd http://www.imsglobal.org/xsd/imsbasiclti_v1p0 http://www.imsglobal.org/xsd/lti/ltiv1p0/imsbasiclti_v1p0.xsd http://www.imsglobal.org/xsd/imslticm_v1p0 http://www.imsglobal.org/xsd/lti/ltiv1p0/imslticm_v1p0.xsd http://www.imsglobal.org/xsd/imslticp_v1p0 http://www.imsglobal.org/xsd/lti/ltiv1p0/imslticp_v1p0.xsd'> "<<
-        #    '<blti:title>Course Wanda Fish</blti:title>                                                                     '<<
-        #    '<blti:description>                                                                                             '<<
-        #    "This adds a link to the #{mod_xml["link"]}                                                                     "<<
-        #    '</blti:description>                                                                                            '<<
-        #    '<blti:extensions platform="client.instructure.com">                                                            '<<
-        #    '<lticm:property name="tool_id">course_navigation</lticm:property>                                              '<<
-        #    '<lticm:property name="privacy_level">anonymous</lticm:property>                                                '<<
-        #    '<lticm:options name="course_navigation">                                                                       '<<
-        #    '<lticm:property name="url">                                                                                    '<<
-        #    "#{ mod["items_url"]}                                                                                           "<<
-        #    '</lticm:property>                                                                                              '<<
-        #    "<lticm:property name='text'>#{mod_xml["link"]}</lticm:property>                                                "<<
-        #    '</lticm:options>                                                                                               '<<
-        #    '</blti:extensions>                                                                                             '
-
-        #    client.post "/api/v1/courses/#{c_course["id"]}/external_tools",
-        #    {
-        #        'config_type' => "by_xml",
-        #        'config_xml' => xml}
 
       end
     rescue Canvas::ApiError => error
@@ -276,7 +226,8 @@ class Course
     puts '#create and set frontpage'
     begin
       canvas_frontpage = canvas_frontpage.gsub '<<course_id>>' , c_course.id.to_s
-      syllabus = canvas.put("/api/v1/courses/#{c_course.id}/front_page",
+      #syllabus = canvas.put("/api/v1/courses/#{c_course.id}/front_page",
+      syllabus = client.post("/api/v1/courses/#{c_course.id}/front_page",
                             {'wiki_page__title__' => 'New Front Page',
                              'wiki_page__body__' => canvas_frontpage,
                              'wiki_page__editing_roles__' => 'teachers',
@@ -284,7 +235,7 @@ class Course
                              'wiki_page__front_page__' => true,
                              'wiki_page__hide_from_students__' => false})
 
-      client.put("/api/v1/courses/#{c_course.id}",
+      client.post("/api/v1/courses/#{c_course.id}",
                  {
                      'course__default_view__' => 'wiki'
                  }
@@ -298,19 +249,19 @@ class Course
   def setup_tabs(client, c_course)
     puts "reorder nav tabs and hide some of them"
     begin
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: false, position: 6})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
-      client.put("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/outcomes", {hidden: true, position: 11})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/syllabus", {hidden: true, position: 10})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/files", {hidden: true, position: 9})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/pages", {hidden: true, position: 8})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/people", {hidden: true, position: 7})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/grades", {hidden: false, position: 6})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/assignments", {hidden: false, position: 5})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/discussions", {hidden: false, position: 4})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
     rescue Canvas::ApiError => error
       puts error
     end
@@ -394,6 +345,7 @@ class CanvasCourse < Course
         self.available = false
       end
     end
+    c_course
   end
 end
 
