@@ -33,7 +33,7 @@ lib/person.rb
   s.add_development_dependency('rdoc')
   s.add_development_dependency('aruba')
   s.add_development_dependency('pry')
-  #s.add_development_dependency('pry-byebug')
+  s.add_development_dependency('pry-byebug')
   s.add_development_dependency('pry-rescue')
   s.add_development_dependency('pry-stack_explorer')
   s.add_runtime_dependency('gli','2.12.2')

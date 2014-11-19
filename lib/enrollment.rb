@@ -11,7 +11,7 @@ class Enrollment
   end
 
   def to_s
-    "user #{user} role #{@role_id} course #{@course.course_id}"
+    "user #{user} role #{@role_id} course #{@section}"
   end
 
   def match(user, section)
