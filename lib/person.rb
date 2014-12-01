@@ -10,16 +10,16 @@ class Person
   def to_array(kind)
     case kind
       when :canvas
-        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, "#{login_id}@evergreen.edu".downcase, 'active']
+        [user_id, login_id, first_name, last_name, "#{login_id}@evergreen.edu".downcase, 'active']
       when :moodle
-        [user_id, login_id, SecureRandom.hex(25), first_name, last_name, email.downcase, 'active']
+        [user_id, login_id, first_name, last_name, email.downcase, 'active']
     end
   end
 
   def Person.users_canvas_csv(users)
     #puts users
     CSV.generate do |csv|
-      csv << ["user_id", "login_id", "password", "first_name", "last_name", "email", "status"]
+      csv << ["user_id", "login_id", "first_name", "last_name", "email", "status"]
       users.each do |user_id, user|
         csv << user.to_array(:canvas)
       end
@@ -29,7 +29,7 @@ class Person
   def Person.users_limited_canvas_csv(enrollments_canvas)
     #puts users
     CSV.generate do |csv|
-      csv << ["user_id", "login_id", "password", "first_name", "last_name", "email", "status"]
+      csv << ["user_id", "login_id", "first_name", "last_name", "email", "status"]
       enrollments_canvas.each do |enrollment|
         csv << enrollment.user.to_array(:canvas)
       end
@@ -39,7 +39,7 @@ class Person
   def Person.users_moodle_csv(users)
     #puts users
     CSV.generate do |csv|
-      csv << ["user_id", "login_id", "password", "first_name", "last_name", "email", "status"]
+      csv << ["user_id", "login_id", "first_name", "last_name", "email", "status"]
       users.each do |user_id, user|
         csv << user.to_array(:moodle)
       end
