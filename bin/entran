@@ -10,7 +10,7 @@ require 'nokogiri'
 require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
-require 'canvas-api'
+#require 'canvas-api'
 require 'pry'
 require 'pandarus'
 #rescue LoadError
