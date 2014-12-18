@@ -298,6 +298,7 @@ class Course
   def setup_tabs(canvas, c_course)
     puts "reorder nav tabs and hide some of them"
     begin
+      canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/chat", {hidden: true, position: 15})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
       canvas.put("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
