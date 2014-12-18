@@ -249,6 +249,7 @@ class Course
   def setup_tabs(client, c_course)
     puts "reorder nav tabs and hide some of them"
     begin
+      client.post("/api/v1/courses/#{c_course["id"]}/tabs/chat", {hidden: false, position: 15})
       client.post("/api/v1/courses/#{c_course["id"]}/tabs/collaborations", {hidden: true, position: 14})
       client.post("/api/v1/courses/#{c_course["id"]}/tabs/conferences", {hidden: true, position: 13})
       client.post("/api/v1/courses/#{c_course["id"]}/tabs/quizzes", {hidden: true, position: 12})
