@@ -10,7 +10,7 @@ require 'nokogiri'
 require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
-#require 'canvas-api'
+require 'canvas-api'
 require 'pry'
 require 'pandarus'
 #rescue LoadError
@@ -117,7 +117,7 @@ module Wrapper
 
       #binding.pry
       puts "----------------->importing accounts"
-      @accounts = Account.import_xml(files[:lms_courses], canvas, client)
+      @accounts = Account.import_xml(files[:lms_courses], client)
       puts @accounts
       @accounts_csv = Account.accounts_canvas_csv(@accounts)
       puts @accounts_csv
@@ -148,8 +148,8 @@ module Wrapper
           unless course.created
             puts "enc----------------->Creating course that does not exist"
             puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
-            puts "enc----------------->/api/v1/accounts/#{@accounts[course.account_id].id}/courses"
-            binding.pry
+            puts "enc----------------->/api/v1/accounts/#{course.account_id}/courses"
+             binding.pry
             c_course = client.create_new_course("sis_account_id:#{course.account_id}",
                                                 {
                                                     'course__sis_course_id__' => course.course_id,
@@ -157,7 +157,7 @@ module Wrapper
                                                     'course__course_code__' => course.short_name,
                                                     'course__start_at__' => course.first_term.start_date.iso8601,
                                                     'course__allow_student_forum_attachments__' => true,
-                                                    'course__term_id__' => course.real_term.c_id,
+                                                    'course__term_id__' => course.real_term,
                                                     'course__syllabus_body__' => @settings.canvas_syllabus,
 
                                                 }

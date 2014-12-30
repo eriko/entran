@@ -264,6 +264,7 @@ class Course
       client.post("/api/v1/courses/#{c_course["id"]}/tabs/announcements", {hidden: false, position: 3})
       client.post("/api/v1/courses/#{c_course["id"]}/tabs/modules", {hidden: false, position: 2})
     rescue Canvas::ApiError => error
+      binding.pry
       puts error
     end
   end
@@ -296,7 +297,7 @@ class CanvasCourse < Course
     rescue Footrest::HttpError::NotFound => e
 
       found = false
-      puts "c_account was not found"
+      puts "c_course was not found"
       puts "---->#{e}"
 
     end

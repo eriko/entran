@@ -8,7 +8,7 @@ class Account
     @name = name
   end
 
-  def Account.import_xml(lms_courses_xml, canvas,client)
+  def Account.import_xml(lms_courses_xml,client)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence
