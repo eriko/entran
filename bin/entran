@@ -136,7 +136,7 @@ module Wrapper
         puts "enu----------------->using all users from enrollment source"
         @users_csv = User.users_canvas_csv(@users)
       end
-      binding.pry
+
       @courses.values.each do |course|
         course.status_check(global_options)
         puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
