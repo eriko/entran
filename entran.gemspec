@@ -33,6 +33,7 @@ lib/user.rb
   s.add_development_dependency('rdoc')
   s.add_development_dependency('aruba')
   s.add_development_dependency('pry')
+  s.add_development_dependency('hirb')
   s.add_runtime_dependency('gli','2.9.0')
   s.add_runtime_dependency('faraday')
   s.add_runtime_dependency('faraday_middleware')
