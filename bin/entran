@@ -331,7 +331,7 @@ module Wrapper
       @settings = Settings.new(files[:lms_courses])
 
       puts "cc----------------->importing accounts"
-      @accounts = Account.import_xml(files[:lms_courses], canvas, client)
+      @accounts = Account.import_xml(files[:lms_courses], client)
       @accounts_csv = Account.accounts_canvas_csv(@accounts)
       #puts @courses
       #get people and enrollments
@@ -364,48 +364,25 @@ module Wrapper
               puts "cc----->current c_section #{c_section}"
               students = Hash.new #used to accumulate the enrollment to stop when we get the same students
               c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
-                                                                                     state: 'active'})
-              if c_section_enrollment.length > 0 #accumulate all the enrollments for the section
-                more = true
-                while more
-                  c_section_enrollment.each do |c_enrollment|
-                    #binding.pry
-                    sis_user_id = c_enrollment.user.sis_user_id
-                    puts user
-                    if students[sis_user_id]
-                      more = false
-                      break
-                      #if we get a repeat stop
-                    else
-                      students[sis_user_id]= c_enrollment
+                                                                                    state: 'active'})
+              puts c_section.name
+                #while more
+                c_section_enrollment.each do |c_enrollment|
+                  puts c_enrollment.user.sis_user_id
+                  user = @users[c_enrollment.user.sis_user_id]
+                  exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
+                  unless exists
+                    puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
+                    begin
+                      #binding.pry
+                      del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
+                    rescue => error
+                      puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                      puts "++++++++++++>#{c_enrollment}"
                     end
+                    puts "cc----->conclude user: #{user} resulted in #{del}"
                   end
-                  c_section_enrollment = client.list_enrollments_sections(c_section.id,
-                                                                          {type: 'StudentEnrollment',
-                                                                           state: 'active',
-                                                                           next_page: true})  if more
 
-                  puts "cc----->there are more enrollments so looping" if more
-                end
-                binding.pry
-                 unless students.empty?
-                  students.values.each do |c_enrollment|
-                    user = @users[c_enrollment.user.sis_user_id]
-                    exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
-                    unless exists
-                      puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
-                      begin
-                        binding.pry
-                        del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
-                      rescue => error
-                        puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
-                        puts "++++++++++++>#{c_enrollment}"
-                      end
-                      puts "cc----->Delete user: #{user} resulted in #{del}"
-                    end
-                  end
-                end
-                # end
               end
             end
           rescue => error
