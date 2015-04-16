@@ -303,7 +303,7 @@ class CanvasCourse < Course
 
       found = false
       puts "c_course was not found"
-      puts "---->#{e}"
+      #puts "---->#{e}"
 
     end
     puts found
