@@ -83,7 +83,7 @@ module Wrapper
           prefix: "https://#{hostname}/api",
           token: token)
 
-      canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
+      #canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
       files = Hash.new
       puts "----------------->loading feed files"
@@ -149,7 +149,6 @@ module Wrapper
             puts "enc----------------->Creating course that does not exist"
             puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
             puts "enc----------------->/api/v1/accounts/#{course.account_id}/courses"
-             binding.pry
             c_course = client.create_new_course("sis_account_id:#{course.account_id}",
                                                 {
                                                     'course__sis_course_id__' => course.course_id,
@@ -157,7 +156,7 @@ module Wrapper
                                                     'course__course_code__' => course.short_name,
                                                     'course__start_at__' => course.first_term.start_date.iso8601,
                                                     'course__allow_student_forum_attachments__' => true,
-                                                    'course__term_id__' => course.real_term,
+                                                    'course__term_id__' => "sis_term_id:#{course.real_term}",
                                                     'course__syllabus_body__' => @settings.canvas_syllabus,
 
                                                 }
@@ -229,7 +228,7 @@ module Wrapper
           puts "ensu------------>course.created == #{course.created} && course.setup == #{course.setup}"
           #binding.pry
           begin
-            c_course = client.get_single_course_courses("sis_course_id:#{self.course_id}")
+            c_course = client.get_single_course_courses("sis_course_id:#{course.course_id}")
             puts c_course
             if c_course.id && course.created == true && course.setup == false
               puts "ensu------------>setup frontpage = #{course.setup_frontpage}"
@@ -246,7 +245,7 @@ module Wrapper
                 open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
                 }
-                course.create_modules(canvas, c_course, @settings)
+                course.create_modules(client, c_course, @settings)
                 course.setup_modules = true
               end
               #reorder nav tabs and hide some of them
@@ -255,7 +254,7 @@ module Wrapper
                 open("http://#{global_options[:p]}/feeds/canvas_setup_nav/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
                 }
-                course.setup_tabs(canvas, c_course)
+                course.setup_tabs(client, c_course)
                 course.setup_nav = true
               end
               if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
