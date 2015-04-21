@@ -13,6 +13,8 @@ require 'net/http/post/multipart'
 require 'canvas-api'
 require 'pry'
 require 'pandarus'
+
+require 'zip'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -181,39 +183,18 @@ module Wrapper
       @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
       puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
 
-
-      puts "ene-------------->creating SIS zip file and uploading it"
-      filename = "sis_#{Time.now.to_i.to_s}"
-      fullpath = "/tmp/#{filename}.zip"
-      puts fullpath
-      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-        ar.add_buffer('users.csv', @users_csv);
-        ar.add_buffer('terms.csv', files[:terms_csv].string);
-        ar.add_buffer('sections.csv', @sections_csv);
-        ar.add_buffer('accounts.csv', @accounts_csv);
-        #ar.add_buffer('courses.csv', @canvases_csv);
-        ar.add_buffer('enrollments.csv', @enrollments_canvas_csv);
-      end
-
-      token = global_options[:t]
-      hostname = global_options[:h]
-      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-      puts url
-      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-      req.add_field("Authorization", "Bearer #{token}")
-      n = Net::HTTP.new(url.host, url.port)
-      n.use_ssl = true
       if global_options[:d]
-        puts "ene-------------->debug mode so not talking to canvas host"
+        puts "----------------->debug mode so not talking to canvas host"
       else
-        res = n.start do |http|
-          http.request(req)
-        end
-        puts res
-      end
-      unless global_options[:d]
-        File.delete(fullpath)
+        sis_data = {}
+        sis_data[:users] = @users_csv
+        sis_data[:terms] = files[:terms_csv].string
+        sis_data[:sections] = @sections_csv
+        sis_data[:accounts] = @accounts_csv
+        sis_data[:enrollments] = @enrollments_canvas_csv
+        send_sis(sis_data,client)
+
+
       end
 
       puts "ensu------------>Processing courses for setup"
@@ -364,24 +345,24 @@ module Wrapper
               puts "cc----->current c_section #{c_section}"
               students = Hash.new #used to accumulate the enrollment to stop when we get the same students
               c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
-                                                                                    state: 'active'})
+                                                                                     state: 'active'})
               puts c_section.name
-                #while more
-                c_section_enrollment.each do |c_enrollment|
-                  puts c_enrollment.user.sis_user_id
-                  user = @users[c_enrollment.user.sis_user_id]
-                  exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
-                  unless exists
-                    puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
-                    begin
-                      #binding.pry
-                      del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
-                    rescue => error
-                      puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
-                      puts "++++++++++++>#{c_enrollment}"
-                    end
-                    puts "cc----->conclude user: #{user} resulted in #{del}"
+              #while more
+              c_section_enrollment.each do |c_enrollment|
+                puts c_enrollment.user.sis_user_id
+                user = @users[c_enrollment.user.sis_user_id]
+                exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
+                unless exists
+                  puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
+                  begin
+                    #binding.pry
+                    del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
+                  rescue => error
+                    puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                    puts "++++++++++++>#{c_enrollment}"
                   end
+                  puts "cc----->conclude user: #{user} resulted in #{del}"
+                end
 
               end
             end
@@ -398,7 +379,6 @@ module Wrapper
   desc 'Add all faculty users to canvas'
   command :canvas_faculty_import do |c|
     c.action do |global_options, options, args|
-
       # Your command logic here
 
       # If you have any errors, just raise them
@@ -407,6 +387,10 @@ module Wrapper
 
       token = global_options[:t]
       hostname = global_options[:h]
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
+
       url = "http://#{global_options[:b]}/banner/public/offerings/export"
       puts url
       @offerings_xml = Nokogiri::XML(open(url))
@@ -426,34 +410,15 @@ module Wrapper
 
 
 
-      puts "creating SIS zip file"
-      filename = "sis_#{Time.now.to_i.to_s}"
-      fullpath = "/tmp/#{filename}.zip"
-      puts fullpath
-      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-        ar.add_buffer('users.csv', @users_csv);
-      end
-
-      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-      puts url
-      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-      req.add_field("Authorization", "Bearer #{token}")
-      n = Net::HTTP.new(url.host, url.port)
-      n.use_ssl = true
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
       else
-        res = n.start do |http|
-          http.request(req)
-        end
-        puts res
+
+        send_sis({users: @users_csv},client)
+      
+
       end
 
-
-      unless global_options[:d]
-        File.delete(fullpath)
-      end
 
     end
 
@@ -474,6 +439,10 @@ module Wrapper
 
       token = global_options[:t]
       hostname = global_options[:h]
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
+
       url = "http://#{global_options[:b]}/banner/public/offerings/export"
       puts url
       @offerings_xml = Nokogiri::XML(open(url))
@@ -491,34 +460,13 @@ module Wrapper
       @users_csv = Person.users_canvas_csv(@users)
 
 
-      puts "creating SIS zip file"
-      filename = "sis_#{Time.now.to_i.to_s}"
-      fullpath = "/tmp/#{filename}.zip"
-      puts fullpath
-      puts "open /tmp/#{filename}.zip && sleep 2 && mate /tmp/#{filename}"
-      Zip::Archive.open(fullpath, Zip::CREATE) do |ar|
-        ar.add_buffer('users.csv', @users_csv);
-      end
-
-      url = URI.parse("https://#{hostname}/api/v1/accounts/1/sis_imports.json?import_type=instructure_csv?extension=zip")
-      puts url
-      req = Net::HTTP::Post::Multipart.new url.path, "attachment" => UploadIO.new(fullpath, "application/zip", "#{filename}.zip")
-      req.add_field("Authorization", "Bearer #{token}")
-      n = Net::HTTP.new(url.host, url.port)
-      n.use_ssl = true
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
       else
-        res = n.start do |http|
-          http.request(req)
-        end
-        puts res
+        send_sis({users: @users_csv},client)
+
       end
 
-
-      unless global_options[:d]
-        File.delete(fullpath)
-      end
 
     end
 

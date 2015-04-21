@@ -7,7 +7,6 @@ require 'section'
 require 'account'
 require 'settings'
 require 'term'
-require 'zipruby'
 require 'faraday'
 require 'yaml'
 require 'csv'
@@ -18,7 +17,6 @@ require 'powerpack'
 #require 'openssl'
 require 'net/http/post/multipart'
 #require 'canvas'
-#require 'zip/zip'
 
 
 
@@ -85,5 +83,17 @@ def course_created?(sis_id, global_options)
 
   end
   return false
+end
+
+def send_sis(files,client)
+  files.each do |name,data|
+    import = client.import_sis_data(1, {attachment: UploadIO.new(StringIO.new(data) , 'text/csv', "#{name}.csv"),
+                                        import_type: 'instructure_csv',
+                                        extension: 'csv'
+                                     })
+    puts import
+  end
+
+
 end
 
