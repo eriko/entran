@@ -8,7 +8,7 @@ class Course
                 :banner_offering_id, :offering_id, :offering_code, :account_id, :sections, :real_term,
                 :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available,
                 :setup, :setup_frontpage, :setup_nav, :setup_modules, :website_id,
-                :modules, :module_links, :kind, :waitlist, :override
+                :modules, :module_links, :kind, :waitlist, :override,:canvas_template
 
   def initialize
     @module_links = Hash.new
@@ -92,6 +92,7 @@ class Course
           @course.setup_modules = website.xpath("./setup_modules").text.to_bool
           @course.waitlist = website.xpath("./waitlist").text.to_bool
           @course.override = website.xpath("./override").text.to_bool
+          @course.canvas_template = website.xpath("./canvas_template").text
           @course.terms = website.xpath("./terms/term/@term_code").collect { |term_code| terms[term_code.to_s.to_i] }
           if all_sections #only do this if sections are pasted in
             website.xpath("./sections/section/@section_id").each { |section_id| @course.sections[section_id.to_s] = all_sections[section_id.to_s] }
@@ -139,9 +140,8 @@ class Course
   end
 
 
-  def create_modules(client, c_course, settings)
-    puts 'ccm---------->#create module from the list'
-    first_mod = nil
+  def create_modules(client, c_course)
+    puts 'ccm---------->#create modules from the list'
     begin
       self.modules.keys.sort.each do |key|
         mod_xml = self.modules[key]
@@ -151,127 +151,28 @@ class Course
                                    {'module__position__' => key,
                                     'module__published__' => true
                                    }
-        #puts mod_xml
-        if mod_xml["first_quarter"].eql?('true') #create the shell parts in the first module of the first quarter
-          first_mod = mod
-          c_mod = client.create_module(c_course["id"], first_mod["id"],
-                                       {'module_item__title__' => '[This is a sample header - click the settings button (gear icon at right) to edit text.]',
-                                        'module_item__type__' => 'SubHeader',
-                                        'module_item__position__' => 1,
-                                        'module__published__' => false
-                                       })
-          #puts c_mod
-          description = client.create_page_courses(c_course["id"],
-                                                   "#{self.kind} Description",
-                                                   {'wiki_page__body__' => settings.canvas_module_description,
-                                                    'wiki_page__editing_roles__' => 'teachers',
-                                                    'wiki_page__published__' => false
-                                                   })
-          #puts description
-          c_mod = client.create_module_item(c_course["id"],
-                                            first_mod["id"],
-                                            'Page',
-                                            :fake,
-                                            {'module_item__title__' => '[ sample page: Description ]',
-                                             'module_item__page_url__' => description['url'],
-                                             'module_item__position__' => 2,
-                                             'module__published__' => false
-                                            })
-          #puts c_mod
-          syllabus = client.create_page_courses(c_course["id"],
-                                                'Syllabus and Covenant',
-                                                {'wiki_page__body__' => settings.canvas_module_syllabus,
-                                                 'wiki_page__editing_roles__' => 'teachers',
-                                                 'wiki_page__published__' => false})
-          #puts syllabus
-          c_mod = client.create_module_item(c_course["id"],
-                                            first_mod["id"],
-                                            'Page',
-                                            :fake,
-                                            {'module_item__title__' => '[ sample page: Syllabus ]',
-                                             'module_item__page_url__' => syllabus['url'],
-                                             'module_item__position__' => 2,
-                                             'module__published__' => false
-                                            })
-          #puts c_mod
-        end
-        if mod_xml["first_week"] && mod_xml["first_week"].eql?('true') #create the shell in the first week of the first quarter
-          puts "cm------------> create the shell in the first week of the first quarter"
-          fw_mod = client.create_module_item(c_course["id"],
-                                             mod["id"],
-                                             'SubHeader',
-                                             {'module_item__title__' => '[ This is a sample header - click the settings button (gear icon at right) to edit text. ]',
-                                              'module_item__position__' => 1,
-                                              'module__published__' => false
-                                             })
-          #puts fw_mod
-          week1 = client.create_page_courses(c_course["id"],
-                                             'Week 1 Description',
-                                             {'wiki_page__body__' => settings.canvas_module_week1,
-                                              'wiki_page__editing_roles__' => 'teachers',
-                                              'wiki_page__published__' => false})
-           #puts week1
-          c_mod = client.create_module_item(c_course["id"],
-                                            mod["id"],
-                                            'Page',
-                                            :fake,
-                                            {'module_item__title__' => '[ sample page: Week 1 Overview ]',
-                                             'module_item__page_url__' => week1['url'],
-                                             'module_item__position__' => 2,
-                                             'module__published__' => false
-                                            })
-          #puts c_mod
-
-        end
-
-
       end
     rescue Canvas::ApiError => error
       puts error
     end
   end
 
-  def create_frontpage(client, c_course, canvas_frontpage)
+  def create_frontpage(client, c_course)
     puts '#create and set frontpage'
     begin
-      canvas_frontpage = canvas_frontpage.gsub '<<course_id>>', c_course.id.to_s
-      front_page = client.update_create_front_page_courses(c_course.id,
-                             {'wiki_page__title__' => 'New Front Page',
-                              'wiki_page__body__' => canvas_frontpage,
-                              'wiki_page__editing_roles__' => 'teachers',
-                              'wiki_page__published__' => true})
-      #client.update_course(c_course.id,{
-      #                                    'course__default_view__' => 'wiki'
-      #                                })
-
-
-    rescue Canvas::ApiError => error
-      puts error
-    end
-
-  end
-
-  def setup_tabs(client, c_course)
-    puts "reorder nav tabs and hide some of them"
-    begin
-      client.update_tab_for_course(c_course["id"],"context_external_tool_131", {hidden: false, position: 15})
-      client.update_tab_for_course(c_course["id"],"collaborations", {hidden: true, position: 14})
-      client.update_tab_for_course(c_course["id"],"conferences", {hidden: true, position: 13})
-      client.update_tab_for_course(c_course["id"],"quizzes", {hidden: true, position: 12})
-      client.update_tab_for_course(c_course["id"],"outcomes", {hidden: true, position: 11})
-      client.update_tab_for_course(c_course["id"],"syllabus", {hidden: true, position: 10})
-      client.update_tab_for_course(c_course["id"],"files", {hidden: true, position: 9})
-      client.update_tab_for_course(c_course["id"],"pages", {hidden: true, position: 8})
-      client.update_tab_for_course(c_course["id"],"people", {hidden: true, position: 7})
-      client.update_tab_for_course(c_course["id"],"grades", {hidden: false, position: 6})
-      client.update_tab_for_course(c_course["id"],"assignments", {hidden: false, position: 5})
-      client.update_tab_for_course(c_course["id"],"discussions", {hidden: false, position: 4})
-      client.update_tab_for_course(c_course["id"],"announcements", {hidden: false, position: 3})
-      client.update_tab_for_course(c_course["id"],"modules", {hidden: false, position: 2})
-    rescue Canvas::ApiError => error
       binding.pry
+      canvas_frontpage = client.show_front_page_courses(c_course.id)
+      body = canvas_frontpage['body'].gsub 'COURSE_ID', c_course.id.to_s
+      title = canvas_frontpage['title']
+      front_page = client.update_create_front_page_courses(c_course.id,
+                                                           { 'wiki_page__body__' => body,
+                                                             'wiki_page__title__' => title
+                                                            })
+
+    rescue Canvas::ApiError => error
       puts error
     end
+
   end
 
 end

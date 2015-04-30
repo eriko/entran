@@ -61,6 +61,9 @@ class Enrollment
     student_sections = [ student_section , crosslist_section]
     student_sections << course.sections["#{offering_id}-#{enrollment_term}-media-cl"]
     student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-science-cl"]
+    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-winter-in-fall-cl"]
+    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-spring-in-fall-cl"]
+    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-spring-in-winter-cl"]
     student_sections.compact!
     #puts "crosslist_section ---> #{crosslist_section}"
     if course.offering_codes.empty?

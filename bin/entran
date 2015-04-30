@@ -159,11 +159,27 @@ module Wrapper
                                                     'course__start_at__' => course.first_term.start_date.iso8601,
                                                     'course__allow_student_forum_attachments__' => true,
                                                     'course__term_id__' => "sis_term_id:#{course.real_term}",
-                                                    'course__syllabus_body__' => @settings.canvas_syllabus,
 
                                                 }
             )
+            #clone the template course over to the generated one
+            ccmc = client.create_content_migration_courses(c_course['id'],
+                                                           'course_copy_importer',
+                                                           settings__source_course_id__: @settings.canvas_templates[course.canvas_template])
+
+            migration_id = ccmc['progress_url'].split('/')[-1]
+
+            until  client.query_progress(migration_id)['workflow_state'].eql? "completed"
+              sleep(1.0/24.0)
+            end
+
             puts "enc----------------->#{c_course}"
+            #client.update_course_settings(c_course['id'],
+            #                              {allow_student_discussion_topic: true,
+            #                               allow_student_forum_attachments: true,
+            #                               allow_student_discussion_editing: true,
+            #                               allow_student_organized_groups: true}
+            #)
             #mark course created in presence
             open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
               f.each_line { |line| p "enc----------->#{line}" }
@@ -182,6 +198,7 @@ module Wrapper
 
       @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
       puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
+      #puts @enrollments_canvas_csv
 
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
@@ -192,7 +209,7 @@ module Wrapper
         sis_data[:sections] = @sections_csv
         sis_data[:accounts] = @accounts_csv
         sis_data[:enrollments] = @enrollments_canvas_csv
-        send_sis(sis_data,client)
+        send_sis(sis_data, client)
 
 
       end
@@ -217,7 +234,7 @@ module Wrapper
                 open("http://#{global_options[:p]}/feeds/canvas_setup_frontpage/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
                 }
-                course.create_frontpage(client, c_course, @settings.canvas_homepage)
+                course.create_frontpage(client, c_course)
                 course.setup_frontpage = true
               end
               #create modules
@@ -226,19 +243,11 @@ module Wrapper
                 open("http://#{global_options[:p]}/feeds/canvas_setup_modules/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
                 }
-                course.create_modules(client, c_course, @settings)
+                course.create_modules(client, c_course)
                 course.setup_modules = true
               end
-              #reorder nav tabs and hide some of them
-              puts "ensu------------>setup setup_nav = #{course.setup_nav}"
-              unless course.setup_nav
-                open("http://#{global_options[:p]}/feeds/canvas_setup_nav/#{global_options[:k]}/#{course.website_id}") { |f|
-                  f.each_line { |line| p line }
-                }
-                course.setup_tabs(client, c_course)
-                course.setup_nav = true
-              end
-              if !course.setup && course.setup_frontpage && course.setup_modules && course.setup_nav # we have figured out that the course has been created on canvas
+
+              if !course.setup && course.setup_frontpage && course.setup_modules  # we have figured out that the course has been created on canvas
                 #but presence does not know about this yet so we will mark it so in presence
                 open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
@@ -399,7 +408,6 @@ module Wrapper
       puts url
       @lms_courses_xml = Nokogiri::XML(open(url))
 
-
       @users = Hash.new
       puts "----------------->importing faculty"
       @offerings_xml.xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
@@ -407,22 +415,12 @@ module Wrapper
 
       @users_csv = Person.users_canvas_csv(@users)
 
-
-
-
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
       else
-
-        send_sis({users: @users_csv},client)
-      
-
+        send_sis({users: @users_csv}, client)
       end
-
-
     end
-
-
     puts "canvas_faculty command ran"
 
   end
@@ -459,18 +457,21 @@ module Wrapper
 
       @users_csv = Person.users_canvas_csv(@users)
 
-
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
       else
-        send_sis({users: @users_csv},client)
-
+        import = client.import_sis_data(1, {attachment: UploadIO.new(sis_data, "application/zip", "#{filename}.zip"),
+                                            import_type: 'instructure_csv',
+                                            extension: 'zip'
+                                         })
+        puts import
       end
-
-
+      if global_options[:d]
+        puts "----------------->debug mode so not talking to canvas host"
+      else
+        send_sis({users: @users_csv}, client)
+      end
     end
-
-
     puts "canvas_students command ran"
 
   end

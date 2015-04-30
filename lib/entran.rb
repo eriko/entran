@@ -19,7 +19,6 @@ require 'net/http/post/multipart'
 #require 'canvas'
 
 
-
 # Add requires for other files you add to your project here, so
 # you just need to require this one file in your bin file
 
@@ -32,8 +31,7 @@ class String
   end
 end
 
-def load_files(files, kind, presence, ims_key, banner_host,year)
-
+def load_files(files, kind, presence, ims_key, banner_host, year)
 
 
   url = "http://#{banner_host}/banner/public/offerings/export"
@@ -85,14 +83,28 @@ def course_created?(sis_id, global_options)
   return false
 end
 
-def send_sis(files,client)
-  files.each do |name,data|
-    import = client.import_sis_data(1, {attachment: UploadIO.new(StringIO.new(data) , 'text/csv', "#{name}.csv"),
+def send_sis(files, client)
+  files.each do |name, data|
+    import = client.import_sis_data(1, {attachment: UploadIO.new(StringIO.new(data), 'text/csv', "#{name}.csv"),
                                         import_type: 'instructure_csv',
                                         extension: 'csv'
                                      })
-    puts import
-  end
+    #puts import
+
+
+    #really should be able to do the following
+    #
+    #sis_data = Zip::OutputStream::write_buffer() do |ar|
+    #  files.each do |name, data|
+    #    ar.put_next_entry("#{name}.csv")
+    #    ar.write(data)
+    #  end
+    #  ar.close_buffer
+    #end
+    #payload = Faraday::UploadIO.new(sis_data, 'zip')
+    #client.import_sis_data(1, attachment: payload)
+
+end
 
 
 end
