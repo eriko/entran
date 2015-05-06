@@ -169,7 +169,7 @@ module Wrapper
 
             migration_id = ccmc['progress_url'].split('/')[-1]
 
-            until  client.query_progress(migration_id)['workflow_state'].eql? "completed"
+            until client.query_progress(migration_id)['workflow_state'].eql? "completed"
               sleep(1.0/24.0)
             end
 
@@ -195,7 +195,6 @@ module Wrapper
           end
         end
       end
-
       @enrollments_canvas_csv = Enrollment.enrollments_canvas_csv(@enrollments_canvas)
       puts "ene-------------->enrollments: #{@enrollments_canvas.count}"
       #puts @enrollments_canvas_csv
@@ -209,6 +208,7 @@ module Wrapper
         sis_data[:sections] = @sections_csv
         sis_data[:accounts] = @accounts_csv
         sis_data[:enrollments] = @enrollments_canvas_csv
+        binding.pry
         send_sis(sis_data, client)
 
 
@@ -247,7 +247,7 @@ module Wrapper
                 course.setup_modules = true
               end
 
-              if !course.setup && course.setup_frontpage && course.setup_modules  # we have figured out that the course has been created on canvas
+              if !course.setup && course.setup_frontpage && course.setup_modules # we have figured out that the course has been created on canvas
                 #but presence does not know about this yet so we will mark it so in presence
                 open("http://#{global_options[:p]}/feeds/canvas_setup/#{global_options[:k]}/#{course.website_id}") { |f|
                   f.each_line { |line| p line }
@@ -380,7 +380,98 @@ module Wrapper
           end
         end
       end
-      puts "canvas command ran"
+      puts "canvas_conclude command ran"
+    end
+  end
+
+  desc 'Enrollment conclude work for Canvas'
+  command :canvas_end_of_term_conclude do |c|
+
+
+    c.action do |global_options, options, args|
+
+      # When a section is both no longer current and it
+      puts global_options
+
+
+      token = global_options[:t]
+      hostname = global_options[:h]
+      puts hostname
+
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
+
+      canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
+
+      files = Hash.new
+      puts "cc----------------->loading feed files"
+      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
+
+      @users = Hash.new
+      puts "cc----------------->importing faculty"
+      files[:offerings_xml].xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
+      puts "cc----------------->total faculty: #{@users.count}"
+
+      puts "cc----------------->importing terms"
+      @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+      #puts "----------------->importing users"
+      #@users = Hash.new
+
+      @enrollments_canvas = Array.new
+
+      puts "cc----------------->importing sections"
+      @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
+      @sections_csv = Section.sections_canvas_csv(@sections)
+      puts "cc----------------->imported sections "
+
+      puts "cc----------------->importing courses"
+      @courses = Course.import_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
+
+
+      @conclude_enrollments = CSV.generate do |csv|
+        csv << ["course_id", "user_id", "role", "section_id", "status", "associated_user_id"]
+        @courses.values.each do |course|
+          c_course = course.status_check(global_options, client)
+          if course.created
+            begin
+              puts "cc----------------->Processing sections for concluded terms and concluding enrollments"
+              puts "cc----------------->Sections #{course.sections}"
+              current_sections = course.sections.values.find_all { |section| !section.current && ['full', 'add'].include?(section.control) }
+              puts "cc----->current sections #{current_sections.length}"
+              current_sections.compact.each do |section|
+                c_section = client.get_section_information_sections("sis_section_id:#{section.section_id}")
+                #puts "cc----->current c_section #{c_section}"
+                c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
+                                                                                       state: 'active'})
+                #puts c_section.name
+                #while more
+                c_section_enrollment.each do |c_enrollment|
+                  #puts c_enrollment.user.sis_user_id
+                  begin
+                    #binding.pry
+                    del = [section.course_id, c_enrollment['user']['sis_user_id'], 'Student', section.section_id, 'completed']
+                    csv << del
+                      #del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
+                  rescue => error
+                    puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                    puts "++++++++++++>#{c_enrollment}"
+                  end
+                  #puts "cc----->conclude user: #{c_enrollment.user.sis_user_id} resulted in #{del}"
+                end
+              end
+            rescue => error
+              puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+            end
+          end
+        end
+      end
+      binding.pry
+      sis_data = {}
+      sis_data[:enrollments] = @conclude_enrollments
+      send_sis(sis_data, client)
+
+      puts "canvas_end_of_term_conclude command ran"
     end
   end
 

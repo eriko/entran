@@ -160,7 +160,6 @@ class Course
   def create_frontpage(client, c_course)
     puts '#create and set frontpage'
     begin
-      binding.pry
       canvas_frontpage = client.show_front_page_courses(c_course.id)
       body = canvas_frontpage['body'].gsub 'COURSE_ID', c_course.id.to_s
       title = canvas_frontpage['title']

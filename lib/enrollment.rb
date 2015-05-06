@@ -51,19 +51,9 @@ class Enrollment
     #puts course.sections
     #puts "course offeringcodes are------->#{course.offering_codes}"
     #puts "finding faculty section"
-    faculty_section = course.sections["#{offering_id}-faculty"]
-    #puts "faculty section ---> #{faculty_section}"
-    #puts "finding student section for #{enrollment_term} term "
-    student_section = course.sections["#{offering_id}-#{enrollment_term}"]
-    #puts "student_section ---> #{student_section}"
-    #puts "finding student crosslist section for #{enrollment_term} term "
-    crosslist_section = course.sections["#{offering_id}-#{enrollment_term}-cl"]
-    student_sections = [ student_section , crosslist_section]
-    student_sections << course.sections["#{offering_id}-#{enrollment_term}-media-cl"]
-    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-science-cl"]
-    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-winter-in-fall-cl"]
-    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-spring-in-fall-cl"]
-    student_sections <<  course.sections["#{offering_id}-#{enrollment_term}-spring-in-winter-cl"]
+    faculty_section = course.sections.detect{|k,v|k.end_with? '-faculty'}[1]
+    #only proccess the student sections that are fully under our control
+    student_sections = course.sections.keep_if{|k,v|v.control.eql?('full')}.values
     student_sections.compact!
     #puts "crosslist_section ---> #{crosslist_section}"
     if course.offering_codes.empty?
@@ -78,9 +68,8 @@ class Enrollment
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
       #puts url
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-      #puts "enrollment_xml for #{course.long_name} is -------->#{enrollment_xml}"
-      # start a REPL session
-      #see if the course is built in banned by looking for an empty document
+
+      #see if the course is built in banner by looking for an empty document
       #if the doc is empty except for the XML declaration use the data from
       #presence and the presence feed to enroll the facutly
       if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"

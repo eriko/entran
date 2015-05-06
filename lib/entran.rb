@@ -40,7 +40,7 @@ def load_files(files, kind, presence, ims_key, banner_host, year)
 
   url = "http://#{presence}/feeds/#{kind}/lms_courses.xml"
   puts url
-  @lms_courses_xml = Nokogiri::XML(open(url))
+  @lms_courses_xml = Nokogiri::XML(open(url,read_timeout: 1000))
 
   start_year = @lms_courses_xml.xpath("//offering_feed/start_year/@year").text.to_i
   end_year = @lms_courses_xml.xpath("//offering_feed/end_year/@year").text.to_i
