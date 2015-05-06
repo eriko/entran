@@ -53,7 +53,7 @@ class Enrollment
     #puts "finding faculty section"
     faculty_section = course.sections.detect{|k,v|k.end_with? '-faculty'}[1]
     #only proccess the student sections that are fully under our control
-    student_sections = course.sections.keep_if{|k,v|v.control.eql?('full')}.values
+    student_sections = course.sections.keep_if{|k,v|(v.control.eql?('full') && v.current)}.values
     student_sections.compact!
     #puts "crosslist_section ---> #{crosslist_section}"
     if course.offering_codes.empty?
