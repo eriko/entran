@@ -14,8 +14,18 @@ class Enrollment
     "user #{user} role #{@role_id} course #{@section}"
   end
 
+  def ==(o)
+    o.class == self.class && o.state == state
+  end
+
+  alias_method :eql?, :==
+
+  def hash
+    state.hash
+  end
+
   def match(user, section)
-    @user == user &&  @section == section
+    @user == user && @section == section
   end
 
   def to_array(kind)
@@ -46,15 +56,19 @@ class Enrollment
   end
 
   def Enrollment.import_xml(course, enrollments, users, ims_key, banner_host)
-    offering_id = course.banner_offering_id
+    #offering_id = course.banner_offering_id
     enrollment_term = course.enrollment_term
-    #puts course.sections
+    course.sections.values.each {|section|puts section.section_id}
     #puts "course offeringcodes are------->#{course.offering_codes}"
     #puts "finding faculty section"
-    faculty_section = course.sections.detect{|k,v|k.end_with? '-faculty'}[1]
+    faculty_section = course.sections.detect { |k, v| k.end_with? '-faculty' }[1]
     #only proccess the student sections that are fully under our control
-    student_sections = course.sections.keep_if{|k,v|(v.control.eql?('full') && v.current)}.values
+    student_sections = course.sections.values.find_all { | v| (v.control.eql?('full') && v.current) && !v.kind.eql?('joint') }
     student_sections.compact!
+    if course.kind.eql? "Joint"
+    joint_sections = course.sections.values.find_all { | v| (v.kind.eql?('joint') && v.current) }
+    joint_sections.compact!
+    end
     #puts "crosslist_section ---> #{crosslist_section}"
     if course.offering_codes.empty?
       puts "ene--------------->No offering codes so using presence data"
@@ -68,7 +82,11 @@ class Enrollment
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
       #puts url
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-
+      #require "rexml/document"
+      #doc = REXML::Document.new enrollment_xml.to_s
+      #out = ""
+      #doc.write(out, 1)
+      #puts out
       #see if the course is built in banner by looking for an empty document
       #if the doc is empty except for the XML declaration use the data from
       #presence and the presence feed to enroll the facutly
@@ -78,6 +96,7 @@ class Enrollment
           enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
           enrollments << enrol
           course.enrollments << enrol
+          puts "possible faculty enrollment adding: #{enrol}"
         end
       else
         enrollment_xml.xpath("./offering/faculty/person").each do |person|
@@ -119,8 +138,66 @@ class Enrollment
           end
         end
       end
+
+    end
+    if course.kind.eql? "Joint"
+      binding.pry
+      puts "ene----------> testing for joint in #{course.long_name}"
+
+
+      puts "ene----------> Joint sections count #{joint_sections.count}"
+      joint_sections.each do |section|
+        puts "ene------section #{section.section_id}"
+        section.offering_codes.each do |code|
+          puts "ene------offering_code #{code}"
+          url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
+          puts url
+          enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+          require "rexml/document"
+          doc = REXML::Document.new enrollment_xml.to_s
+          out = ""
+          doc.write(out, 1)
+          puts out
+          enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
+          unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
+            enrollment_xml.xpath("./offering/registered/person").each do |person|
+              puts "ene------>person to enroll #{person}"
+              user, users = Person.import_user_xml(person, users)
+              enrol = Enrollment.new(user, :student, section, 'active')
+              enrollments << enrol
+              course.enrollments << enrol
+              puts "joint student enrollment adding: #{enrol}"
+            end
+            #only do this when waitlist is active
+            if course.waitlist
+              enrollment_xml.xpath("./offering/waitlisted/person").each do |person|
+                user, users = Person.import_user_xml(person, users)
+                enrol = Enrollment.new(user, :student, section, 'active')
+                enrollments << enrol
+                course.enrollments << enrol
+              end
+            end
+            #only do this when waitlist is active
+            if course.override
+              enrollment_xml.xpath("./offering/overrides/person").each do |person|
+                user, users = Person.import_user_xml(person, users)
+                enrol = Enrollment.new(user, :student, section, 'active')
+                enrollments << enrol
+                course.enrollments << enrol
+              end
+            end
+          end
+        end
+      end
     end
     enrollments
+  end
+
+
+  protected
+
+  def state
+    [@user, @role_id, @section, @status]
   end
 
 end

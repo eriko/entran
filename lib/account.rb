@@ -19,7 +19,7 @@ class Account
       begin
         c_account = client.get_single_account(id: "sis_account_id:#{account.account_id}")
         #c_account = canvas.get("/api/v1/accounts/sis_account_id:#{account.account_id}")
-        binding.pry
+        #binding.pry
         account.id = c_account[0].id
         #account.id = c_account['id']
         puts "that account id for #{account.account_id} is #{account.id}"

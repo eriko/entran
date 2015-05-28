@@ -101,7 +101,7 @@ module Wrapper
       #puts "----------------->importing users"
       #@users = Hash.new
 
-      @enrollments_canvas = Array.new
+      @enrollments_canvas = Set.new
 
       puts "----------------->extract settings from lms file"
       @settings = Settings.new(@lms_courses_xml)
@@ -466,7 +466,7 @@ module Wrapper
           end
         end
       end
-      binding.pry
+      #binding.pry
       sis_data = {}
       sis_data[:enrollments] = @conclude_enrollments
       send_sis(sis_data, client)

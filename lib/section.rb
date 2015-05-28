@@ -1,7 +1,7 @@
 class Section
   attr_accessor :section_id, :course_id, :name, :status,
                 :start_date, :end_date, :term_code ,:control,
-                :current, :kind
+                :current, :kind,:offering_codes
 
   def to_s
     "#{section_id} #{course_id} #{name} #{status} #{start_date} #{end_date}"
@@ -38,6 +38,9 @@ class Section
         section.start_date = Time.parse section_xml.xpath("./@start_date").text
       else
         section.start_date = nil
+      end
+      if section.kind && section.kind.eql?('joint')
+        section.offering_codes = section_xml.xpath("./oars_offerings/oars_offering/@code").collect { |code| code }
       end
       #puts section.start_date
       #puts section.end_dated

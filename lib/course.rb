@@ -5,15 +5,16 @@ class Course
 
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
-                :banner_offering_id, :offering_id, :offering_code, :account_id, :sections, :real_term,
+                 :account_id, :sections, :real_term,
                 :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available,
                 :setup, :setup_frontpage, :setup_nav, :setup_modules, :website_id,
-                :modules, :module_links, :kind, :waitlist, :override,:canvas_template
+                :modules, :module_links, :kind, :waitlist, :override,:canvas_template,  :offering_id #,
+                #:banner_offering_id, :offering_code
 
   def initialize
     @module_links = Hash.new
     @offering_codes = []
-    @enrollments = []
+    @enrollments = Set.new
     @faculty = []
     @sections = Hash.new
     @modules = Hash.new
@@ -75,8 +76,8 @@ class Course
           @course.course_id = course_id
           @course.kind = offering.xpath('./type').text
           @course.website_id = website.xpath("./websiteid/@id").text
-          @course.banner_offering_id = offering.xpath("@banner_offering_id").text
-          @course.offering_id = offering.xpath("@offering_id").text
+          #@course.banner_offering_id = offering.xpath("@banner_offering_id").text
+          #@course.offering_id = offering.xpath("@offering_id").text
           @course.enrollment_term = offering.xpath("./enrollment_term/@term_code").text
           @course.offering_codes = offering.xpath("./oars_offerings/oars_offering/@code").collect { |code| code }
           #puts"offering.oarsofferingcodes--->#{offering.xpath("./oars_offerings")} "
