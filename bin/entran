@@ -11,7 +11,7 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-require 'pry'
+#require 'pry'
 require 'pandarus'
 
 require 'zip'
@@ -208,7 +208,7 @@ module Wrapper
         sis_data[:sections] = @sections_csv
         sis_data[:accounts] = @accounts_csv
         sis_data[:enrollments] = @enrollments_canvas_csv
-        binding.pry
+        #binding.pry
         send_sis(sis_data, client)
 
 
@@ -548,15 +548,7 @@ module Wrapper
 
       @users_csv = Person.users_canvas_csv(@users)
 
-      if global_options[:d]
-        puts "----------------->debug mode so not talking to canvas host"
-      else
-        import = client.import_sis_data(1, {attachment: UploadIO.new(sis_data, "application/zip", "#{filename}.zip"),
-                                            import_type: 'instructure_csv',
-                                            extension: 'zip'
-                                         })
-        puts import
-      end
+
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
       else

@@ -58,16 +58,16 @@ class Enrollment
   def Enrollment.import_xml(course, enrollments, users, ims_key, banner_host)
     #offering_id = course.banner_offering_id
     enrollment_term = course.enrollment_term
-    course.sections.values.each {|section|puts section.section_id}
+    course.sections.values.each { |section| puts section.section_id }
     #puts "course offeringcodes are------->#{course.offering_codes}"
     #puts "finding faculty section"
     faculty_section = course.sections.detect { |k, v| k.end_with? '-faculty' }[1]
     #only proccess the student sections that are fully under our control
-    student_sections = course.sections.values.find_all { | v| (v.control.eql?('full') && v.current) && !v.kind.eql?('joint') }
+    student_sections = course.sections.values.find_all { |v| (v.control.eql?('full') && v.current) && !v.kind.eql?('joint') }
     student_sections.compact!
     if course.kind.eql? "Joint"
-    joint_sections = course.sections.values.find_all { | v| (v.kind.eql?('joint') && v.current) }
-    joint_sections.compact!
+      joint_sections = course.sections.values.find_all { |v| (v.kind.eql?('joint') && v.current) }
+      joint_sections.compact!
     end
     #puts "crosslist_section ---> #{crosslist_section}"
     if course.offering_codes.empty?
@@ -82,14 +82,6 @@ class Enrollment
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
       #puts url
       enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-      #require "rexml/document"
-      #doc = REXML::Document.new enrollment_xml.to_s
-      #out = ""
-      #doc.write(out, 1)
-      #puts out
-      #see if the course is built in banner by looking for an empty document
-      #if the doc is empty except for the XML declaration use the data from
-      #presence and the presence feed to enroll the facutly
       if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
         puts "ene--------------->no data from banner so using presence"
         course.faculty.each do |faculty|
@@ -140,24 +132,14 @@ class Enrollment
       end
 
     end
-    if course.kind.eql? "Joint"
-      binding.pry
-      puts "ene----------> testing for joint in #{course.long_name}"
-
-
+    if joint_sections
       puts "ene----------> Joint sections count #{joint_sections.count}"
       joint_sections.each do |section|
         puts "ene------section #{section.section_id}"
         section.offering_codes.each do |code|
           puts "ene------offering_code #{code}"
           url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
-          puts url
-          enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-          require "rexml/document"
-          doc = REXML::Document.new enrollment_xml.to_s
-          out = ""
-          doc.write(out, 1)
-          puts out
+          #puts url
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
             enrollment_xml.xpath("./offering/registered/person").each do |person|
