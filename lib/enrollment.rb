@@ -133,22 +133,22 @@ class Enrollment
 
     end
     if joint_sections
-      puts "ene----------> Joint sections count #{joint_sections.count}"
+      #puts "ene----------> Joint sections count #{joint_sections.count}"
       joint_sections.each do |section|
-        puts "ene------section #{section.section_id}"
+        #puts "ene------section #{section.section_id}"
         section.offering_codes.each do |code|
-          puts "ene------offering_code #{code}"
+          #puts "ene------offering_code #{code}"
           url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
           #puts url
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
             enrollment_xml.xpath("./offering/registered/person").each do |person|
-              puts "ene------>person to enroll #{person}"
+              #puts "ene------>person to enroll #{person}"
               user, users = Person.import_user_xml(person, users)
               enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
-              puts "joint student enrollment adding: #{enrol}"
+              #puts "joint student enrollment adding: #{enrol}"
             end
             #only do this when waitlist is active
             if course.waitlist
