@@ -120,9 +120,9 @@ module Wrapper
       #binding.pry
       puts "----------------->importing accounts"
       @accounts = Account.import_xml(files[:lms_courses], client)
-      puts @accounts
+     #puts @accounts
       @accounts_csv = Account.accounts_canvas_csv(@accounts)
-      puts @accounts_csv
+     #puts @accounts_csv
       #puts @courses
       #get people and enrollments
 
