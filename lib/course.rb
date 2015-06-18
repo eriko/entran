@@ -84,7 +84,8 @@ class Course
           #puts "the course id is #{course_xml.xpath("./sourcedid/id[text()]").text}"
           @course.short_name = website.xpath("./short_name").text
           @course.long_name = website.xpath("./long_name").text
-          puts "cix-------------->#{@course.long_name}"
+          #puts "the course is named #{@course.long_name}"
+          #puts "cix-------------->#{@course.long_name}"
           @course.account_id = website.xpath("./account_id/@id").text
           @course.created = website.xpath("./created").text.to_bool
           @course.setup = website.xpath("./setup").text.to_bool

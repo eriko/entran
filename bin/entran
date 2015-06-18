@@ -144,54 +144,56 @@ module Wrapper
       end
 
       @courses.values.each do |course|
-        course.status_check(global_options, client)
-        puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
-        begin
-          unless course.created
-            puts "enc----------------->Creating course that does not exist"
-            puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
-            puts "enc----------------->/api/v1/accounts/#{course.account_id}/courses"
-            c_course = client.create_new_course("sis_account_id:#{course.account_id}",
-                                                {
-                                                    'course__sis_course_id__' => course.course_id,
-                                                    'course__name__' => course.long_name,
-                                                    'course__course_code__' => course.short_name,
-                                                    'course__start_at__' => course.first_term.start_date.iso8601,
-                                                    'course__allow_student_forum_attachments__' => true,
-                                                    'course__term_id__' => "sis_term_id:#{course.real_term}",
+        unless course.kind.eql? 'Crosslist'
+          course.status_check(global_options, client)
+          puts "enc----------------->/api/v1/courses/sis_course_id:#{course.course_id}"
+          begin
+            unless course.created
+              puts "enc----------------->Creating course that does not exist"
+              puts "enc----------------->the offering course #{course.long_name.strip} does not exist so we are going to make it"
+              puts "enc----------------->/api/v1/accounts/#{course.account_id}/courses"
+              c_course = client.create_new_course("sis_account_id:#{course.account_id}",
+                                                  {
+                                                      'course__sis_course_id__' => course.course_id,
+                                                      'course__name__' => course.long_name,
+                                                      'course__course_code__' => course.short_name,
+                                                      'course__start_at__' => course.first_term.start_date.iso8601,
+                                                      'course__allow_student_forum_attachments__' => true,
+                                                      'course__term_id__' => "sis_term_id:#{course.real_term}",
 
-                                                }
-            )
-            #clone the template course over to the generated one
-            ccmc = client.create_content_migration_courses(c_course['id'],
-                                                           'course_copy_importer',
-                                                           settings__source_course_id__: @settings.canvas_templates[course.canvas_template])
+                                                  }
+              )
+              #clone the template course over to the generated one
+              ccmc = client.create_content_migration_courses(c_course['id'],
+                                                             'course_copy_importer',
+                                                             settings__source_course_id__: @settings.canvas_templates[course.canvas_template])
 
-            migration_id = ccmc['progress_url'].split('/')[-1]
+              migration_id = ccmc['progress_url'].split('/')[-1]
 
-            until client.query_progress(migration_id)['workflow_state'].eql? "completed"
-              sleep(1.0/24.0)
+              until client.query_progress(migration_id)['workflow_state'].eql? "completed"
+                sleep(1.0/24.0)
+              end
+
+              puts "enc----------------->#{c_course}"
+              #client.update_course_settings(c_course['id'],
+              #                              {allow_student_discussion_topic: true,
+              #                               allow_student_forum_attachments: true,
+              #                               allow_student_discussion_editing: true,
+              #                               allow_student_organized_groups: true}
+              #)
+              #mark course created in presence
+              open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
+                f.each_line { |line| p "enc----------->#{line}" }
+              }
+              course.created = true
             end
-
-            puts "enc----------------->#{c_course}"
-            #client.update_course_settings(c_course['id'],
-            #                              {allow_student_discussion_topic: true,
-            #                               allow_student_forum_attachments: true,
-            #                               allow_student_discussion_editing: true,
-            #                               allow_student_organized_groups: true}
-            #)
-            #mark course created in presence
-            open("http://#{global_options[:p]}/feeds/canvas_created/#{global_options[:k]}/#{course.website_id}/#{c_course["id"]}") { |f|
-              f.each_line { |line| p "enc----------->#{line}" }
-            }
-            course.created = true
-          end
-        rescue Canvas::ApiError => error
-          if error.to_s.include?('is already in use')
-            puts "enc----------------->The course already existed but was deleted without changing the sis id #{error}"
-            open("http://#{global_options[:p]}/feeds/canvas_blocked/#{global_options[:k]}/#{course.website_id}") { |f|
-              f.each_line { |line| p "enc----------->#{line}" }
-            }
+          rescue Canvas::ApiError => error
+            if error.to_s.include?('is already in use')
+              puts "enc----------------->The course already existed but was deleted without changing the sis id #{error}"
+              open("http://#{global_options[:p]}/feeds/canvas_blocked/#{global_options[:k]}/#{course.website_id}") { |f|
+                f.each_line { |line| p "enc----------->#{line}" }
+              }
+            end
           end
         end
       end

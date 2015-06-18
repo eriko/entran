@@ -39,7 +39,7 @@ class Section
       else
         section.start_date = nil
       end
-      if section.kind && section.kind.eql?('joint')
+      if section.kind && ['joint','crosslist'].include?(section.kind)
         section.offering_codes = section_xml.xpath("./oars_offerings/oars_offering/@code").collect { |code| code }
       end
       #puts section.start_date

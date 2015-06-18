@@ -58,25 +58,30 @@ class Enrollment
   def Enrollment.import_xml(course, enrollments, users, ims_key, banner_host)
     #offering_id = course.banner_offering_id
     enrollment_term = course.enrollment_term
-    course.sections.values.each { |section| puts section.section_id }
-    #puts "course offeringcodes are------->#{course.offering_codes}"
+    #course.sections.values.each { |section| puts section.section_id }
+    puts "course offeringcodes are------->#{course.offering_codes}"
     #puts "finding faculty section"
+    puts "#{course.kind} #{course.long_name} "
+    #puts course.sections
     faculty_section = course.sections.detect { |k, v| k.end_with? '-faculty' }[1]
+    puts "faculty_section #{faculty_section}"
     #only proccess the student sections that are fully under our control
-    student_sections = course.sections.values.find_all { |v| (v.control.eql?('full') && v.current) && !v.kind.eql?('joint') }
+    student_sections = course.sections.values.find_all { |v| (v.control.eql?('full') && v.current) && !(['joint','crosslist'].include? v.kind) }
     student_sections.compact!
-    if course.kind.eql? "Joint"
-      joint_sections = course.sections.values.find_all { |v| (v.kind.eql?('joint') && v.current) }
+    puts "student_sections #{student_sections}"
+    puts course.kind
+    if ["Joint","Crosslist"].include?(course.kind)
+      joint_sections = course.sections.values.find_all { |v| (['joint','crosslist'].include?(v.kind) && v.current) }
       joint_sections.compact!
     end
-    #puts "crosslist_section ---> #{crosslist_section}"
+    puts "joint_sections ---> #{joint_sections}"
     if course.offering_codes.empty?
       puts "ene--------------->No offering codes so using presence data"
       course.faculty.each do |faculty|
         enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
         enrollments << enrol
         course.enrollments << enrol
-      end
+      end if course.faculty
     end
     course.offering_codes.each do |code|
       url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
@@ -133,22 +138,24 @@ class Enrollment
 
     end
     if joint_sections
-      #puts "ene----------> Joint sections count #{joint_sections.count}"
+      puts "ene----------> Joint sections count #{joint_sections.count}"
       joint_sections.each do |section|
-        #puts "ene------section #{section.section_id}"
+        puts "ene------section #{section.section_id}"
+        puts "ene------section.offering_codes #{section.offering_codes}"
         section.offering_codes.each do |code|
-          #puts "ene------offering_code #{code}"
-          url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{enrollment_term}&key=#{ims_key}"
-          #puts url
+          puts "ene------offering_code #{code}"
+          term =/(\d*)(.*)/.match(code)[1]
+          url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
+          puts url
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
             enrollment_xml.xpath("./offering/registered/person").each do |person|
-              #puts "ene------>person to enroll #{person}"
+              puts "ene------>person to enroll #{person}"
               user, users = Person.import_user_xml(person, users)
               enrol = Enrollment.new(user, :student, section, 'active')
               enrollments << enrol
               course.enrollments << enrol
-              #puts "joint student enrollment adding: #{enrol}"
+              puts "joint student enrollment adding: #{enrol}"
             end
             #only do this when waitlist is active
             if course.waitlist
@@ -169,7 +176,7 @@ class Enrollment
               end
             end
           end
-        end
+        end if section.offering_codes
       end
     end
     enrollments
