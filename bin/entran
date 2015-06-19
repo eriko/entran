@@ -132,7 +132,7 @@ module Wrapper
         puts "ene---------->working on: #{course.long_name}"
         #course_created?(course.course_id,global_options)
         @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-        puts "ene-------------------->course enrollments count: #{course.enrollments.count}"
+        puts "ene-------------------->course enrollments count: #{course.enrollment_count}"
       end
 
       unless global_options[:f]
@@ -203,13 +203,18 @@ module Wrapper
 
       if global_options[:d]
         puts "----------------->debug mode so not talking to canvas host"
+        puts @users_csv
+        puts files[:terms_csv].string
+        puts @sections_csv
+        puts @accounts_csv
+        puts @enrollments_canvas_csv
       else
         sis_data = {}
-        sis_data[:users] = @users_csv
-        sis_data[:terms] = files[:terms_csv].string
-        sis_data[:sections] = @sections_csv
-        sis_data[:accounts] = @accounts_csv
-        sis_data[:enrollments] = @enrollments_canvas_csv
+        sis_data[:users]        = @users_csv
+        sis_data[:terms]        = files[:terms_csv].string
+        sis_data[:sections]     = @sections_csv
+        sis_data[:accounts]     = @accounts_csv
+        sis_data[:enrollments]  = @enrollments_canvas_csv
         #binding.pry
         send_sis(sis_data, client)
 
@@ -333,7 +338,7 @@ module Wrapper
         puts "---------->working on: #{course.long_name}"
         #course_created?(course.course_id,global_options)
         @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
-        puts "cc-------------------->course enrollments count: #{course.enrollments.count}"
+        puts "cc-------------------->course enrollments count: #{course.enrollment_count}"
       end
 
 

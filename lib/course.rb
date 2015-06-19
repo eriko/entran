@@ -8,7 +8,8 @@ class Course
                  :account_id, :sections, :real_term,
                 :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available,
                 :setup, :setup_frontpage, :setup_nav, :setup_modules, :website_id,
-                :modules, :module_links, :kind, :waitlist, :override,:canvas_template,  :offering_id #,
+                :modules, :module_links, :kind, :waitlist, :override,:canvas_template,  :offering_id,
+                 :enrollment_count#,
                 #:banner_offering_id, :offering_code
 
   def initialize
