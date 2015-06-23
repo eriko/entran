@@ -60,7 +60,7 @@ class Enrollment
     #offering_id = course.banner_offering_id
     enrollment_term = course.enrollment_term
     #course.sections.values.each { |section|#puts section.section_id }
-    puts "course offeringcodes are------->#{course.offering_codes}"
+    #puts "course offeringcodes are------->#{course.offering_codes.collect { |code| code }.join(', ')}"
     #puts "finding faculty section"
     #puts "#{course.kind} #{course.long_name} "
     #puts course.sections
@@ -76,6 +76,10 @@ class Enrollment
       joint_sections.compact!
     end
     #puts "joint_sections ---> #{joint_sections}"
+    #joint_sections.each do |section|
+    #  puts section.offering_codes
+    #  puts "section offeringcodes are------->#{section.offering_codes.collect { |code| code }.join(', ')}" if section.offering_codes
+    #end if joint_sections
     if course.offering_codes.empty?
       #puts "ene--------------->No offering codes so using presence data"
       course.faculty.each do |faculty|
@@ -87,7 +91,7 @@ class Enrollment
     course.offering_codes.each do |code|
       student_sections.each do |section|
         url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{section.term_code}&key=#{ims_key}"
-        puts url
+        #puts url
         enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
         if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
           #puts "ene--------------->no data from banner so using presence"
@@ -140,11 +144,11 @@ class Enrollment
       joint_sections.each do |section|
         #puts "ene------section #{section.section_id}"
         #puts "ene------section.offering_codes #{section.offering_codes}"
-        course.offering_codes.each do |code|
-          puts "ene------offering_code #{code}"
+        section.offering_codes.each do |code|
+          #puts "ene------offering_code #{code}"
           term =/(\d*)(.*)/.match(code)[1]
-          url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
-          puts url
+          #url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
+          #puts "Joint #{url}"
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
             enrollment_xml.xpath("./offering/registered/person").each do |person|
