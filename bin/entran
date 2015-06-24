@@ -120,9 +120,9 @@ module Wrapper
       #binding.pry
       puts "----------------->importing accounts"
       @accounts = Account.import_xml(files[:lms_courses], client)
-     #puts @accounts
+      #puts @accounts
       @accounts_csv = Account.accounts_canvas_csv(@accounts)
-     #puts @accounts_csv
+      #puts @accounts_csv
       #puts @courses
       #get people and enrollments
 
@@ -210,11 +210,11 @@ module Wrapper
         puts @enrollments_canvas_csv
       else
         sis_data = {}
-        sis_data[:users]        = @users_csv
-        sis_data[:terms]        = files[:terms_csv].string
-        sis_data[:sections]     = @sections_csv
-        sis_data[:accounts]     = @accounts_csv
-        sis_data[:enrollments]  = @enrollments_canvas_csv
+        sis_data[:users] = @users_csv
+        sis_data[:terms] = files[:terms_csv].string
+        sis_data[:sections] = @sections_csv
+        sis_data[:accounts] = @accounts_csv
+        sis_data[:enrollments] = @enrollments_canvas_csv
         #binding.pry
         send_sis(sis_data, client)
 
@@ -340,53 +340,68 @@ module Wrapper
         @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
         puts "cc-------------------->course enrollments count: #{course.enrollment_count}"
       end
+      @conclude_enrollments = CSV.generate do |csv|
+        csv << ["course_id", "user_id", "role", "section_id", "status", "associated_user_id"]
+        puts "courses to work on"
+        @courses.values.each do |course|
+          puts "#{course.real_term}  #{course.long_name}"
+        end
 
+        @courses.values.each do |course|
+          if !course.kind.eql?("Crosslist")
+            puts "#{course.real_term}  #{course.long_name}"
+            c_course = course.status_check(global_options, client)
+            if course.created
+              begin
+                puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+                #c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
+                puts "cc----->#{c_course}"
+                #if c_course["id"]
+                #  c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
+                #puts "cc----->#{c_sections}"
+                #get the one or two sections that are for current enrollment term and just process those two
+                #binding.pry
+                current_sections = course.sections.values.find_all { |section| section.current && section.control.eql?('full') }
+                puts "cc----->current sections #{current_sections.length}"
+                current_sections.compact.each do |section|
+                  c_section = client.get_section_information_sections("sis_section_id:#{section.section_id}")
+                  puts "cc----->current c_section #{c_section}"
+                  students = Hash.new #used to accumulate the enrollment to stop when we get the same students
+                  c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
+                                                                                         state: 'active'})
+                  puts c_section.name
+                  #while more
+                  c_section_enrollment.each do |c_enrollment|
+                    #puts c_enrollment.user.sis_user_id
+                    user = @users[c_enrollment.user.sis_user_id]
+                    exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
+                    unless exists
+                      begin
+                        #binding.pry
+                        del = [section.course_id, c_enrollment['user']['sis_user_id'], 'Student', section.section_id, 'completed']
 
-      @courses.values.each do |course|
-        c_course = course.status_check(global_options, client)
-        if course.created
-          begin
-            puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
-            #c_course = canvas.get("/api/v1/courses/sis_course_id:#{course.course_id}")
-            puts "cc----->#{c_course}"
-            #if c_course["id"]
-            #  c_sections = canvas.get("/api/v1/courses/#{c_course["id"]}/sections")
-            #puts "cc----->#{c_sections}"
-            #get the one or two sections that are for current enrollment term and just process those two
-            #binding.pry
-            current_sections = course.sections.values.find_all { |section| section.current && section.control.eql?('full') }
-            puts "cc----->current sections #{current_sections.length}"
-            current_sections.compact.each do |section|
-              c_section = client.get_section_information_sections("sis_section_id:#{section.section_id}")
-              puts "cc----->current c_section #{c_section}"
-              students = Hash.new #used to accumulate the enrollment to stop when we get the same students
-              c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
-                                                                                     state: 'active'})
-              puts c_section.name
-              #while more
-              c_section_enrollment.each do |c_enrollment|
-                puts c_enrollment.user.sis_user_id
-                user = @users[c_enrollment.user.sis_user_id]
-                exists = @enrollments_canvas.detect { |enrollment| enrollment.match(user, section) }
-                unless exists
-                  puts "cc----->/api/v1/courses/#{c_enrollment['course_id']}/enrollments/#{c_enrollment['id']}?task=conclude"
-                  begin
-                    #binding.pry
-                    del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
-                  rescue => error
-                    puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
-                    puts "++++++++++++>#{c_enrollment}"
+                        csv << del
+                          #del = client.conclude_enrollment(c_enrollment.course_id, c_enrollment.id, {task: "conclude"})
+                      rescue => error
+                        puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                        puts "++++++++++++>#{c_enrollment}"
+                      end
+                      puts "cc----->conclude user: #{user} resulted in #{del}"
+                    end
+
                   end
-                  puts "cc----->conclude user: #{user} resulted in #{del}"
                 end
-
+              rescue => error
+                puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
               end
             end
-          rescue => error
-            puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
           end
         end
       end
+
+      sis_data = {}
+      sis_data[:enrollments] = @conclude_enrollments
+      send_sis(sis_data, client)
       puts "canvas_conclude command ran"
     end
   end
