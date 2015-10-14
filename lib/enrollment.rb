@@ -1,7 +1,7 @@
 class Enrollment
   attr_accessor :user, :role_id, :section, :status
 
-  @@roles = {student: "Student", faculty: "Teacher"}
+  @@roles = {canvas: {student: "Student", faculty: "Teacher"} , wordpress:{student: "Student", faculty: "Faculty"}}
 
   def initialize(user, role_id, section, status)
     @user = user
@@ -31,9 +31,9 @@ class Enrollment
   def to_array(kind)
     case kind
       when :canvas
-        [@section.course_id, @user.user_id, @@roles[role_id], @section.section_id, status]
-      when :moodle
-        [@course_id, @user.user_id, @@roles[role_id], nil, 'active', nil]
+        [@section.course_id, @user.user_id, @@roles[:canvas][role_id], @section.section_id, status]
+      when :wordpress
+        [@course_id, @user.user_id, @@roles[:wordpress][role_id], nil, 'active', nil]
     end
   end
 
@@ -46,11 +46,11 @@ class Enrollment
     end
   end
 
-  def Enrollment.enrollments_moodle_csv(enrollments)
+  def Enrollment.enrollments_wordpress_csv(enrollments)
     CSV.generate do |csv|
       csv << ["course_id", "user_id", "role", "section_id", "status", "associated_user_id"]
       enrollments.each do |enrol|
-        csv << enrol.to_array(:moodle)
+        csv << enrol.to_array(:wordpress)
       end
     end
   end
@@ -90,7 +90,7 @@ class Enrollment
     end
     course.offering_codes.each do |code|
       student_sections.each do |section|
-        url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{section.term_code}&key=#{ims_key}"
+        url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{section.term_code}&key=#{ims_key}"
         #puts url
         enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
         if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
@@ -147,7 +147,7 @@ class Enrollment
         section.offering_codes.each do |code|
           #puts "ene------offering_code #{code}"
           term =/(\d*)(.*)/.match(code)[1]
-          url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
+          url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
           #puts "Joint #{url}"
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
