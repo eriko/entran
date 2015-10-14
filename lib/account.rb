@@ -43,7 +43,7 @@ class Account
     case kind
       when :canvas
         [account_id, '', name, "active"]
-      when :moodle
+      when :wordpress
         [section_id, course_id, name, "active", start_date, end_date]
     end
   end

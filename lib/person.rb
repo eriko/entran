@@ -11,7 +11,9 @@ class Person
     case kind
       when :canvas
         [user_id, login_id, first_name, last_name, "#{login_id}@evergreen.edu".downcase, 'active']
-      when :moodle
+      when :person
+        [user_id, login_id, first_name, last_name, email.downcase, 'active']
+      when :wordpress
         [user_id, login_id, first_name, last_name, email.downcase, 'active']
     end
   end
@@ -36,12 +38,12 @@ class Person
     end
   end
 
-  def Person.users_moodle_csv(users)
+  def Person.users_wordpress_csv(users)
     #puts users
     CSV.generate do |csv|
       csv << ["user_id", "login_id", "first_name", "last_name", "email", "status"]
       users.each do |user_id, user|
-        csv << user.to_array(:moodle)
+        csv << user.to_array(:wordpress)
       end
     end
   end
@@ -87,7 +89,7 @@ class Person
   end
 
   def Person.import_students_xml(offering_xml, users, ims_key, banner_host)
-    url = "http://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{offering_xml.attribute("code")}&term_code=#{offering_xml.attribute("enrollment_term")}&key=#{ims_key}"
+    url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{offering_xml.attribute("code")}&term_code=#{offering_xml.attribute("enrollment_term")}&key=#{ims_key}"
     #puts url
     enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
 

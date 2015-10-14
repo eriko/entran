@@ -28,7 +28,8 @@ class Course
       when :canvas
         #puts "the course id being processed is #{course_id}"
         [course_id, short_name, long_name, account_id, real_term.term_id, status, first_term.start_date.iso8601, end_date]
-      when :moodle
+      when :wordpress
+
         [long_name, short_name, 'topic', first_term.start_date.strftime('%d/%m/%G'), self.weeks, self.type_display, course_id, summary, 0, 'manual', 1, 'self', 0, 'Self enrollment (Student)', course_password, "Welcome to #{self.long_name}", 5]
     end
   end
@@ -60,7 +61,7 @@ class Course
 
   end
 
-  def Course.import_xml(lms_courses_xml, kind, all_sections, users, terms)
+  def Course.import_canvas_xml(lms_courses_xml, kind, all_sections, users, terms)
     #The courses to be used are from presence where the course site has beeen marked requested.
     #Then data from other data sources like the ims.xml feed will be used to gather the full set of data
     #based on the list from presence

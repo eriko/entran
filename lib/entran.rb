@@ -34,7 +34,7 @@ end
 def load_files(files, kind, presence, ims_key, banner_host, year)
 
 
-  url = "http://#{banner_host}/banner/public/offerings/export"
+  url = "https://#{banner_host}/banner/public/offerings/export"
   puts url
   @offerings_xml = Nokogiri::XML(open(url))
 

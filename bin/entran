@@ -11,7 +11,7 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-#require 'pry'
+require 'pry'
 require 'pandarus'
 
 require 'zip'
@@ -112,7 +112,7 @@ module Wrapper
       puts "----------------->imported sections "
 
       puts "----------------->importing courses"
-      @courses = Course.import_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
+      @courses = Course.import_canvas_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
 
       puts "----------------->extract settings from lms file"
       @settings = Settings.new(files[:lms_courses])
@@ -322,7 +322,7 @@ module Wrapper
       puts "cc----------------->imported sections "
 
       puts "cc----------------->importing courses"
-      @courses = Course.import_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
+      @courses = Course.import_canvas_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
 
       puts "cc----------------->extract settings from lms file"
       @settings = Settings.new(files[:lms_courses])
@@ -448,7 +448,7 @@ module Wrapper
       puts "cc----------------->imported sections "
 
       puts "cc----------------->importing courses"
-      @courses = Course.import_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
+      @courses = Course.import_canvas_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
 
 
       @conclude_enrollments = CSV.generate do |csv|

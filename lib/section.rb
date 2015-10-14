@@ -75,7 +75,7 @@ class Section
     case kind
       when :canvas
         [section_id, course_id, name, "active", start_date, end_date]
-      when :moodle
+      when :wordpress
         [section_id, course_id, name, "active", start_date, end_date]
     end
   end
