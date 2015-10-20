@@ -103,6 +103,7 @@ class Course
           end
           if users #only do this if users is pasted in
             @course.faculty = website.xpath("./people/person/@username").collect { |username| users.values.find { |user| user.login_id.eql?(username.to_s) } }
+            @course.faculty.compact!
             puts "cix-------------->the faculty count is: #{@course.faculty.count}"
           end
           website.xpath("./modules/module").collect { |mod| @course.modules[mod["position"].to_s.to_i] = mod }
@@ -114,16 +115,6 @@ class Course
           #@course.real_term = terms[real_term]
           #puts "the real_term is #{ @course.real_term}"
 
-          #this block was used to get catalog data for the description to be used by moodle
-          #since we are not using this for moodle I have commented it out.
-          #offering_id = offering.xpath("./offeringid").text
-          #puts "the offering id is #{offering_id} is #{offering_id.class}"
-          #Get the catalog description for the offering
-          #@course.summary = catalogs[@course.curricular_year].xpath("/programs/program[@id=#{offering_id}]/description[text()]").text
-          #if @course.summary.nil? || @course.summary.length < 1
-          #  @course.summary = "Summary unavailable at moodle course creation time"
-          #end
-          #puts "the @course.summary is #{@course.summary}"
           @course.status = 'active'
           @course.offering_type = offering.xpath("./type[text()]").text
           #@course.start_date = @course.terms.sort[0].start_date.utc.iso8601

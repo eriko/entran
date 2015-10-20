@@ -29,6 +29,7 @@ class Enrollment
   end
 
   def to_array(kind)
+    puts "#{@section.course_id}, @user.user_id, #{@@roles[:canvas][role_id]}, #{@section.section_id}, #{status}"
     case kind
       when :canvas
         [@section.course_id, @user.user_id, @@roles[:canvas][role_id], @section.section_id, status]
@@ -80,28 +81,17 @@ class Enrollment
     #  puts section.offering_codes
     #  puts "section offeringcodes are------->#{section.offering_codes.collect { |code| code }.join(', ')}" if section.offering_codes
     #end if joint_sections
-    if course.offering_codes.empty?
-      #puts "ene--------------->No offering codes so using presence data"
       course.faculty.each do |faculty|
         enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
         enrollments << enrol
         course.enrollments << enrol
       end if course.faculty
-    end
     course.offering_codes.each do |code|
       student_sections.each do |section|
         url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{section.term_code}&key=#{ims_key}"
         #puts url
         enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
-        if enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
-          #puts "ene--------------->no data from banner so using presence"
-          course.faculty.each do |faculty|
-            enrol = Enrollment.new(faculty, :faculty, faculty_section, 'active')
-            enrollments << enrol
-            course.enrollment_count = course.enrollment_count += 1
-            #puts "possible faculty enrollment adding: #{enrol}"
-          end
-        else
+        unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
           enrollment_xml.xpath("./offering/faculty/person").each do |person|
             user, users = Person.import_user_xml(person, users)
             if user
