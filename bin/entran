@@ -15,6 +15,7 @@ require 'pry'
 require 'pandarus'
 
 require 'zip'
+require 'slack-notifier'
 #rescue LoadError
 #  STDERR.puts "In development, you need to use `bundle exec bin/entran` to run your app"
 #  STDERR.puts "At install-time, RubyGems will make sure lib, etc. are in the load path"
@@ -64,6 +65,7 @@ module Wrapper
   flag [:c, :canvas_key]
   flag [:b, :banner_host]
   flag [:y, :year]
+  flag [:s, :slack]
 
   desc 'Enrollment work for Canvas'
   command :canvas do |c|
@@ -80,10 +82,13 @@ module Wrapper
 
       token = global_options[:t]
       hostname = global_options[:h]
+      slack_url = global_options[:s]
       puts hostname
       client = Pandarus::Client.new(
           prefix: "https://#{hostname}/api",
           token: token)
+
+      notifier = Slack::Notifier.new slack_url
 
       #canvas = Canvas::API.new(:host => "https://#{hostname}", :token => token)
 
@@ -260,6 +265,9 @@ module Wrapper
                   f.each_line { |line| p line }
                 }
                 course.setup = true
+                message = "The course <a href='https://#{hostname}/courses/#{c_course.id}'> #{course.long_name}</a> has been created and setup"
+                Slack::Notifier::LinkFormatter.format(message)
+                notifier.ping message
               end
             end
           rescue Canvas::ApiError => error

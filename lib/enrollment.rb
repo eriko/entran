@@ -29,7 +29,7 @@ class Enrollment
   end
 
   def to_array(kind)
-    puts "#{@section.course_id}, @user.user_id, #{@@roles[:canvas][role_id]}, #{@section.section_id}, #{status}"
+    #puts "#{@section.course_id}, @user.user_id, #{@@roles[:canvas][role_id]}, #{@section.section_id}, #{status}"
     case kind
       when :canvas
         [@section.course_id, @user.user_id, @@roles[:canvas][role_id], @section.section_id, status]

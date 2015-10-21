@@ -104,7 +104,7 @@ class Course
           if users #only do this if users is pasted in
             @course.faculty = website.xpath("./people/person/@username").collect { |username| users.values.find { |user| user.login_id.eql?(username.to_s) } }
             @course.faculty.compact!
-            puts "cix-------------->the faculty count is: #{@course.faculty.count}"
+            #puts "cix-------------->the faculty count is: #{@course.faculty.count}"
           end
           website.xpath("./modules/module").collect { |mod| @course.modules[mod["position"].to_s.to_i] = mod }
 
