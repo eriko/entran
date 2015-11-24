@@ -31,14 +31,14 @@ class String
   end
 end
 
-def load_files(files, kind, presence, ims_key, banner_host, year)
+def load_files(files, kind, presence, ims_key, banner_host, year , all = '')
 
 
   url = "https://#{banner_host}/banner/public/offerings/export"
   puts url
   @offerings_xml = Nokogiri::XML(open(url))
 
-  url = "http://#{presence}/feeds/#{kind}/lms_courses.xml"
+  url = "http://#{presence}/feeds/#{all}#{kind}/lms_courses.xml"
   puts url
   @lms_courses_xml = Nokogiri::XML(open(url,read_timeout: 1000))
 

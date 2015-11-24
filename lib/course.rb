@@ -6,10 +6,10 @@ class Course
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                  :account_id, :sections, :real_term,
-                :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available,
+                :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available, :conclude,
                 :setup, :setup_frontpage, :setup_nav, :setup_modules, :website_id,
                 :modules, :module_links, :kind, :waitlist, :override,:canvas_template,  :offering_id,
-                 :enrollment_count#,
+                 :enrollment_count,:workflow_state#,
                 #:banner_offering_id, :offering_code
 
   def initialize
@@ -90,6 +90,8 @@ class Course
           #puts "cix-------------->#{@course.long_name}"
           @course.account_id = website.xpath("./account_id/@id").text
           @course.created = website.xpath("./created").text.to_bool
+          @course.conclude = website.xpath("./conclude").text.to_bool
+          @course.workflow_state = website.xpath("./workflow_state").text.to_bool
           @course.setup = website.xpath("./setup").text.to_bool
           @course.setup_nav = website.xpath("./setup_nav").text.to_bool
           @course.setup_frontpage = website.xpath("./setup_frontpage").text.to_bool
@@ -204,6 +206,8 @@ class CanvasCourse < Course
     puts found
     #binding.pry
     if found #how to detect that it exists
+      #we will use workflow_state elsewhere to control the work on concluding a course on canvas.
+      self.workflow_state = c_course.workflow_state
 
       if self.created
         puts "sc-------->course was already marked created"
@@ -233,6 +237,14 @@ class CanvasCourse < Course
           f.each_line { |line| p line }
         }
         puts "sc-------->remarking as unavailable"
+        self.available = false
+      end
+
+      if  !c_course.workflow_state.eql?("completed")
+        open("http://#{global_options[:p]}/feeds/canvas_concluded/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->marking as concluded"
         self.available = false
       end
 
