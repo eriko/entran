@@ -11,7 +11,7 @@ require 'csv'
 #require 'openssl'
 require 'net/http/post/multipart'
 require 'canvas-api'
-require 'pry'
+#require 'pry'
 require 'pandarus'
 
 require 'zip'
