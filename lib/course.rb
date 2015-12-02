@@ -240,7 +240,7 @@ class CanvasCourse < Course
         self.available = false
       end
 
-      if  !c_course.workflow_state.eql?("completed")
+      if  c_course.workflow_state.eql?("completed")
         open("http://#{global_options[:p]}/feeds/canvas_concluded/#{global_options[:k]}/#{self.website_id}") { |f|
           f.each_line { |line| p line }
         }
