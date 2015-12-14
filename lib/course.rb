@@ -6,7 +6,8 @@ class Course
   attr_accessor :course_id, :curricular_year, :short_name, :long_name, :account_id,
                 :status, :start_date, :end_date, :offering_type, :terms, :summary,
                  :account_id, :sections, :real_term,
-                :enrollment_term, :offering_codes, :enrollments, :faculty, :created, :available, :conclude,
+                :enrollment_term, :offering_codes, :enrollments, :faculty,
+                :created, :available, :conclude, :concluded,
                 :setup, :setup_frontpage, :setup_nav, :setup_modules, :website_id,
                 :modules, :module_links, :kind, :waitlist, :override,:canvas_template,  :offering_id,
                  :enrollment_count,:workflow_state#,
@@ -91,6 +92,7 @@ class Course
           @course.account_id = website.xpath("./account_id/@id").text
           @course.created = website.xpath("./created").text.to_bool
           @course.conclude = website.xpath("./conclude").text.to_bool
+          @course.concluded = website.xpath("./concluded").text.to_bool
           @course.workflow_state = website.xpath("./workflow_state").text.to_bool
           @course.setup = website.xpath("./setup").text.to_bool
           @course.setup_nav = website.xpath("./setup_nav").text.to_bool
@@ -240,11 +242,19 @@ class CanvasCourse < Course
         self.available = false
       end
 
-      if  c_course.workflow_state.eql?("completed")
+      if  c_course.workflow_state.eql?("completed") && !self.concluded     #only report that it is concluded if presence does not know.
         open("http://#{global_options[:p]}/feeds/canvas_concluded/#{global_options[:k]}/#{self.website_id}") { |f|
           f.each_line { |line| p line }
         }
         puts "sc-------->marking as concluded"
+        self.available = false
+      end
+
+      if  !c_course.workflow_state.eql?("completed") && self.concluded     #only report that it is unconcluded if presence does not know.
+        open("http://#{global_options[:p]}/feeds/canvas_unconcluded/#{global_options[:k]}/#{self.website_id}") { |f|
+          f.each_line { |line| p line }
+        }
+        puts "sc-------->marking as unconcluded"
         self.available = false
       end
 
