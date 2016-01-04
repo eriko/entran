@@ -137,7 +137,7 @@ class Enrollment
         section.offering_codes.each do |code|
           #puts "ene------offering_code #{code}"
           term =/(\d*)(.*)/.match(code)[1]
-          url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{term}&key=#{ims_key}"
+          url = "https://#{banner_host}/banner/public/oars/offering/export/offering.xml?offering_code=#{code}&term_code=#{section.term_code}&key=#{ims_key}"
           #puts "Joint #{url}"
           enrollment_xml = Nokogiri::XML(open(url, :ssl_verify_mode => OpenSSL::SSL::VERIFY_NONE))
           unless enrollment_xml.to_s.eql? "<?xml version=\"1.0\"?>\n<offering/>\n"
