@@ -46,4 +46,5 @@ lib/person.rb
   s.add_runtime_dependency('powerpack')
   s.add_runtime_dependency('canvas-api','1.0')
   s.add_runtime_dependency('rubyzip')
+  s.add_runtime_dependency('slack-notifier')
 end

@@ -288,12 +288,7 @@ module Wrapper
 
     c.action do |global_options, options, args|
 
-      # Your command logic here
-
-      # If you have any errors, just raise them
-      # raise "that command made no sense"
       puts global_options
-
 
       token = global_options[:t]
       hostname = global_options[:h]
@@ -438,6 +433,145 @@ module Wrapper
     end
   end
 
+  desc 'Enrollment conclude work for Canvas'
+  command :canvas_section_conclude do |c|
+
+
+    c.action do |global_options, options, args|
+
+      puts global_options
+
+      token = global_options[:t]
+      hostname = global_options[:h]
+      puts hostname
+
+      client = Pandarus::Client.new(
+          prefix: "https://#{hostname}/api",
+          token: token)
+
+
+      slack_url = global_options[:s]
+      notifier = Slack::Notifier.new slack_url
+
+      files = Hash.new
+      puts "cc----------------->loading feed files"
+      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y])
+
+      @users = Hash.new
+      puts "cc----------------->importing faculty"
+      files[:offerings_xml].xpath("//faculty").each { |fac| Person.import_faculty_xml(fac, @users) }
+      puts "cc----------------->total faculty: #{@users.count}"
+
+      puts "cc----------------->importing terms"
+      @terms = Term.import_xml files[:terms_xml], files[:lms_courses].xpath("//current_curricular_year").text.to_i
+      #puts "----------------->importing users"
+      #@users = Hash.new
+
+      @enrollments_canvas = Array.new
+
+      puts "cc----------------->extract settings from lms file"
+      @settings = Settings.new(@lms_courses_xml)
+
+      puts "cc----------------->importing sections"
+      @sections = Section.import_xml files[:lms_courses], "CanvasCourse"
+      @sections_csv = Section.sections_canvas_csv(@sections)
+      puts "cc----------------->imported sections "
+
+      puts "cc----------------->importing courses"
+      @courses = Course.import_canvas_xml files[:lms_courses], "CanvasCourse", @sections, @users, @terms
+
+      puts "cc----------------->extract settings from lms file"
+      @settings = Settings.new(files[:lms_courses])
+
+      puts "cc----------------->importing accounts"
+      @accounts = Account.import_xml(files[:lms_courses], client)
+      @accounts_csv = Account.accounts_canvas_csv(@accounts)
+      #puts @courses
+      #get people and enrollments
+
+      puts "cc----->creating enrollments"
+      @courses.values.each do |course|
+        puts "---------->working on: #{course.long_name}"
+        #course_created?(course.course_id,global_options)
+        @enrollments_canvas = Enrollment.import_xml course, @enrollments_canvas, @users, global_options[:i], global_options[:b]
+        puts "cc-------------------->course enrollments count: #{course.enrollment_count}"
+      end
+      @conclude_enrollments = CSV.generate do |csv|
+        csv << ["course_id", "user_id", "role", "section_id", "status", "associated_user_id"]
+        puts "courses to work on"
+        @courses.values.each do |course|
+          puts "#{course.real_term}  #{course.long_name}"
+        end
+        begin
+          @courses.values.each do |course|
+            if !course.kind.eql?("Crosslist")
+              puts "#{course.real_term}  #{course.long_name}"
+
+              if course.created
+                begin
+                  puts "cc----------------->Processing enrollment_term sections for rogue enrollements and removing them"
+
+                  #binding.pry
+                  current_sections = course.sections.values.find_all { |section| section.conclude }
+                  puts "cc----->current sections #{current_sections.length}"
+                  if current_sections
+                    #current_sections.each { |sec| puts "cc------->current section #{sec}" }
+                    current_sections.compact.each do |section|
+
+                      #puts "cc----->sis_section_id:#{section.section_id}"
+                      c_section = client.get_section_information_sections("sis_section_id:#{section.section_id}")
+                      #puts "cc----->current c_section #{c_section}"
+                      c_section_enrollment = client.list_enrollments_sections(c_section.id, {type: 'StudentEnrollment',
+                                                                                             state: 'active'})
+                      puts c_section.name
+                      c_section_enrollment.each do |c_enrollment|
+                        puts c_enrollment.user.sis_user_id
+
+                        #add student to list to be concluded
+                        del = [section.course_id, c_enrollment['user']['sis_user_id'], 'Student', section.section_id, 'completed']
+                        csv << del
+
+                        puts "cc----->conclude user: #{ c_enrollment['user']['name']} #{ c_enrollment['user']['sis_user_id']} resulted in #{del}"
+                      end
+
+                    end
+                  end
+                rescue => error
+                  message = "canvas_conclude command ++++++++++++>there was an error while processing enrollments in sections marked for conclusion #{course.long_name} #{error}<++++++++++++++++"
+                  #binding.pry
+                  Slack::Notifier::LinkFormatter.format(message)
+                  puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+                end
+              end
+            end
+          end
+        rescue => error
+          message = "canvas_conclude command ++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+          #binding.pry
+          Slack::Notifier::LinkFormatter.format(message)
+          puts "++++++++++++>there was an error while processing for rogue enrollments #{error}<++++++++++++++++"
+        end
+      end
+      begin
+        sis_data = {}
+        sis_data[:enrollments] = @conclude_enrollments
+        if global_options[:d]
+          puts sis_data[:enrollments]
+        else
+          send_sis(sis_data, client)
+        end
+        message = "canvas_conclude command ran and sent #{@conclude_enrollments.length} to #{hostname}"
+        Slack::Notifier::LinkFormatter.format(message)
+        puts "canvas_conclude command ran"
+      rescue => error
+        message = "canvas_conclude command ++++++++++++>there was an error while processing for rogue enrollments  as the file was sent #{error}<++++++++++++++++"
+        #binding.pry
+        Slack::Notifier::LinkFormatter.format(message)
+        puts "++++++++++++>there was an error while processing for rogue enrollments as the file was sent #{error}<++++++++++++++++"
+      end
+    end
+  end
+
   desc 'Conclude courses that are over'
   command :canvas_course_conclude do |c|
     c.action do |global_options, options, args|
@@ -458,7 +592,7 @@ module Wrapper
 
       files = Hash.new
       puts "----------------->loading feed files"
-      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y],'all/')
+      load_files(files, 'canvas', global_options[:p], global_options[:i], global_options[:b], global_options[:y], 'all/')
 
       @users = Hash.new
       puts "----------------->importing faculty"
@@ -496,10 +630,10 @@ module Wrapper
       #find out which ones are still 'available' or not concluded.
       puts @courses.class
       #binding.pry
-      courses = @courses.select { |key,course| course.conclude }
+      courses = @courses.select { |key, course| course.conclude }
       puts courses
       concludeable = Array.new
-      courses.each do |key , course|
+      courses.each do |key, course|
         course.status_check(global_options, client)
         concludeable << course if course.conclude && (course.workflow_state.eql?("available") || course.workflow_state.eql?("unpublished"))
       end

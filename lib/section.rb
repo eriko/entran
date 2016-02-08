@@ -1,7 +1,7 @@
 class Section
   attr_accessor :section_id, :course_id, :name, :status,
                 :start_date, :end_date, :term_code ,:control,
-                :current, :kind,:offering_codes
+                :current, :kind,:offering_codes ,:conclude
 
   def to_s
     "#{section_id} #{course_id} #{name} #{status} #{start_date} #{end_date}"
@@ -24,6 +24,7 @@ class Section
       section.control = section_xml.xpath("./@control").text
       section.kind = section_xml.xpath("./@kind").text
       section.current = section_xml.xpath("./@current").text.to_bool
+      section.conclude = section_xml.xpath("./@conclude").text.to_bool
 
       #puts section_xml.xpath("./@end_date")
       #puts "--------> the section xml is #{section_xml}"

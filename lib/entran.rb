@@ -38,7 +38,7 @@ def load_files(files, kind, presence, ims_key, banner_host, year , all = '')
   puts url
   @offerings_xml = Nokogiri::XML(open(url))
 
-  url = "http://#{presence}/feeds/#{all}#{kind}/lms_courses.xml"
+  url = "http://#{presence}/feeds#{"/#{all}" if all.length > 0}/canvas_courses.xml"
   puts url
   @lms_courses_xml = Nokogiri::XML(open(url,read_timeout: 1000))
 
